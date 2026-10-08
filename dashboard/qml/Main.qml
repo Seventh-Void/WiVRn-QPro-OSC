@@ -442,6 +442,11 @@ Kirigami.ApplicationWindow {
                 enabled: root.server_started
             },
             Kirigami.Action {
+                text: QproPupil.state == "streaming" ? i18n("Pupil tracking (running)") : i18n("Pupil tracking")
+                icon.name: "view-visible"
+                onTriggered: root.pageStack.push(Qt.createComponent("PupilPage.qml").createObject())
+            },
+            Kirigami.Action {
                 text: i18n("Settings")
                 icon.name: "settings-configure-symbolic"
                 onTriggered: root.pageStack.push(Qt.createComponent("SettingsPage.qml").createObject())

@@ -69,6 +69,9 @@ public:
 		return stream;
 	}
 
+	// IPv4 address of the headset ("" when not IPv4)
+	std::string peer_ipv4();
+
 	bool is_active()
 	{
 		return active;

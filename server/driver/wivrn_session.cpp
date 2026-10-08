@@ -286,6 +286,8 @@ wivrn::wivrn_session::wivrn_session(std::unique_ptr<wivrn_connection> connection
 
 wivrn_session::~wivrn_session()
 {
+	vrchat_osc_emitter.reset();
+
 #if WIVRN_FEATURE_SOLARXR
 	solarxr_device_clear_feeder_devices(static_roles.body);
 #endif
@@ -368,10 +370,19 @@ void wivrn_session::start(ipc_server * server)
 	mnd_ipc_server = server;
 	net_thread = std::jthread([this](auto stop_token) { return run_net(stop_token); });
 	resume_session();
+
+	if (auto config = configuration(); config.vrchat_osc and fb_face2_tracker)
+	{
+		std::optional<float> pupils;
+		if (config.qpro_pupils)
+			pupils = config.qpro_pupils->sensitivity;
+		vrchat_osc_emitter.emplace(*fb_face2_tracker, config.vrchat_osc->host, config.vrchat_osc->port, pupils, connection->peer_ipv4());
+	}
 }
 
 void wivrn_session::stop()
 {
+	vrchat_osc_emitter.reset();
 	net_thread = std::jthread();
 	worker_thread = std::jthread();
 }

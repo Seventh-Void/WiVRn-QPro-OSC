@@ -294,6 +294,17 @@ void wivrn::wivrn_connection::reset(std::stop_token stop, TCP && tcp, std::funct
 	init(stop, tick);
 }
 
+std::string wivrn::wivrn_connection::peer_ipv4()
+{
+	sockaddr_in6 peer{};
+	socklen_t len = sizeof(peer);
+	if (getpeername(control.get_fd(), (sockaddr *)&peer, &len) < 0 or peer.sin6_family != AF_INET6 or not IN6_IS_ADDR_V4MAPPED(&peer.sin6_addr))
+		return {};
+	char text[INET_ADDRSTRLEN] = {};
+	inet_ntop(AF_INET, &peer.sin6_addr.s6_addr[12], text, sizeof(text));
+	return text;
+}
+
 void wivrn::wivrn_connection::shutdown()
 {
 	if (stream)

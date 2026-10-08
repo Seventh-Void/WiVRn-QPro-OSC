@@ -26,6 +26,7 @@ add_executable(wivrn-dashboard
     adb.cpp
     apk_installer.cpp
     firewall.cpp
+    qpro_pupil.cpp
     vulkan_info.cpp
 )
 
@@ -50,6 +51,7 @@ qt_add_qml_module(wivrn-dashboard
         qml/SettingsPage.qml
         qml/HeadsetsPage.qml
         qml/HeadsetStatsPage.qml
+        qml/PupilPage.qml
         qml/WizardPage.qml
         qml/WizardStep.qml
         qml/DeviceCard.qml
@@ -88,6 +90,11 @@ target_link_libraries(wivrn-dashboard
     wivrn-common-server
     wivrn-external
 )
+
+if (WIVRN_BUILD_TEST)
+    add_executable(test-qpro-pupil test_qpro_pupil.cpp qpro_pupil.cpp)
+    target_link_libraries(test-qpro-pupil PRIVATE Qt6::Qml KF6::I18n)
+endif()
 
 install(TARGETS wivrn-dashboard ${KDE_INSTALL_TARGETS_DEFAULT_ARGS})
 

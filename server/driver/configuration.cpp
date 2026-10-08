@@ -22,6 +22,7 @@
 #include "configuration.h"
 
 #include <algorithm>
+#include <arpa/inet.h>
 #include <chrono>
 #include <ctime>
 #include <filesystem>
@@ -223,6 +224,37 @@ configuration::configuration()
 			publication = *it;
 			if (publication == service_publication(-1))
 				throw std::runtime_error("invalid service publication " + it->get<std::string>());
+		}
+
+		if (auto it = json.find("vrchat-osc"); it != json.end() and it->is_object())
+		{
+			vrchat_osc_target target;
+			auto host = it->find("host");
+			auto port = it->find("port");
+			if (host != it->end() and host->is_string())
+				target.host = host->get<std::string>();
+			int port_value = port != it->end() and port->is_number_integer() ? port->get<int>() : target.port;
+			in_addr addr;
+			// Off with an error rather than a throw, which would skip the keys after this one
+			if (port_value < 1 or port_value > 65535 or inet_pton(AF_INET, target.host.c_str(), &addr) != 1)
+				U_LOG_E("vrchat-osc disabled: \"host\" must be an IPv4 address and \"port\" 1-65535");
+			else
+			{
+				target.port = port_value;
+				vrchat_osc = target;
+			}
+		}
+
+		if (auto it = json.find("qpro-pupils"); it != json.end() and it->is_object())
+		{
+			auto & pupils = qpro_pupils.emplace();
+			if (auto s = it->find("sensitivity"); s != it->end() and s->is_number())
+			{
+				if (float value = s->get<float>(); value >= 1.0f and value <= 3.0f)
+					pupils.sensitivity = value;
+				else
+					U_LOG_E("qpro-pupils: \"sensitivity\" must be 1.0-3.0, using %.1f", pupils.sensitivity);
+			}
 		}
 
 		if (auto it = json.find("openvr-compat-path"); it != json.end())

@@ -66,6 +66,8 @@ public:
 
 	Q_INVOKABLE QCoro::QmlTask startUsbConnection(QString serial, QString pin);
 	Q_INVOKABLE QCoro::QmlTask checkIfWivrnIsInstalled(QString serial);
+	// `adb tcpip 5555` on the first headset connected over USB; resolves to a message for the user
+	Q_INVOKABLE QCoro::QmlTask enableWirelessAdb();
 
 	int rowCount(const QModelIndex & parent) const override
 	{
@@ -86,4 +88,5 @@ private:
 	QCoro::Task<> checkIfAdbIsInstalled();
 	QCoro::Task<> add_device(QString serial);
 	QCoro::Task<> doStartUsbConnection(QString serial, QString pin);
+	QCoro::Task<QString> doEnableWirelessAdb();
 };

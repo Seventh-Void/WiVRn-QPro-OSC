@@ -19,6 +19,7 @@
 #include "adb.h"
 
 #include "escape_sandbox.h"
+#include <KLocalizedString>
 #include <QCoroProcess>
 #include <QCoroQmlTask>
 #include <QProcess>
@@ -337,6 +338,34 @@ QCoro::Task<> adb::doStartUsbConnection(QString serial, QString pin)
 	}
 
 	// TODO display success
+}
+
+QCoro::QmlTask adb::enableWirelessAdb()
+{
+	return doEnableWirelessAdb();
+}
+
+QCoro::Task<QString> adb::doEnableWirelessAdb()
+{
+	// Network devices are listed as "ip:port" or "adb-<serial>._adb-tls-connect._tcp"
+	auto it = std::ranges::find_if(m_android_devices, [](const device & d) {
+		return not d.serial.contains(':') and not d.serial.contains("._adb-tls");
+	});
+	if (it == m_android_devices.end())
+		co_return i18n("No headset found over USB. Plug it in and allow USB debugging in the headset.");
+	QString serial = it->serial; // m_android_devices can change while waiting
+
+	auto tcpip = escape_sandbox(m_path, "-s", serial, "tcpip", "5555");
+	tcpip->setProcessChannelMode(QProcess::MergedChannels);
+	auto co_tcpip = qCoro(*tcpip);
+	if (not co_await co_tcpip.start())
+		co_return i18n("Failed to run adb: %1", tcpip->errorString());
+	co_await co_tcpip.waitForFinished();
+
+	QString output = QString::fromUtf8(tcpip->readAll()).trimmed();
+	if (tcpip->exitStatus() != QProcess::NormalExit or tcpip->exitCode() != 0 or output.startsWith("error"))
+		co_return i18n("adb tcpip failed on %1: %2", serial, output);
+	co_return i18n("Wireless ADB enabled on %1 until the headset reboots. You can unplug it.", serial);
 }
 
 #include "moc_adb.cpp"

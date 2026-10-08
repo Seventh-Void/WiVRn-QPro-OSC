@@ -68,6 +68,21 @@ struct configuration
 	// monostate: default value, string: user defined, nullptr: disabled
 	std::variant<std::monostate, std::string, std::nullptr_t> openvr_compat_path;
 
+	// VRChat face tracking over OSC ("Direct" mode), disabled when empty
+	struct vrchat_osc_target
+	{
+		std::string host = "127.0.0.1";
+		uint16_t port = 9000;
+	};
+	std::optional<vrchat_osc_target> vrchat_osc;
+
+	// Camera pupil tracking on a rooted Quest Pro (needs vrchat_osc), disabled when empty
+	struct qpro_pupils_config
+	{
+		float sensitivity = 1.4f; // 1.0 .. 3.0
+	};
+	std::optional<qpro_pupils_config> qpro_pupils;
+
 	static void set_config_file(const std::filesystem::path &);
 	static std::filesystem::path get_config_file();
 

@@ -25,7 +25,9 @@
 #include "wivrn_server.h"
 #include <QList>
 #include <QObject>
+#include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <fcntl.h>
 #include <nlohmann/json.hpp>
 #include <qqmlintegration.h>
@@ -121,6 +123,9 @@ void Settings::emitAllChanged()
 	openvrChanged();
 	debugGuiChanged();
 	steamVrLhChanged();
+	vrchatOscChanged();
+	qproPupilsChanged();
+	qproPupilSensitivityChanged();
 	lhMaxExtrapolationEnabledChanged();
 	lhMaxExtrapolationChanged();
 	lhStickDeadzoneChanged();
@@ -419,6 +424,68 @@ void Settings::set_steamVrLh(const bool & value)
 		steamVrLhChanged();
 }
 
+bool Settings::vrchatOsc() const
+{
+	auto it = m_jsonSettings.find("vrchat-osc");
+	return it != m_jsonSettings.end() and it->is_object();
+}
+
+void Settings::set_vrchatOsc(const bool & value)
+{
+	auto old = vrchatOsc();
+	if (not value)
+		m_jsonSettings.erase("vrchat-osc");
+	else if (not m_jsonSettings["vrchat-osc"].is_object())
+		m_jsonSettings["vrchat-osc"] = {{"host", "127.0.0.1"}, {"port", 9000}};
+	if (old != value)
+		vrchatOscChanged();
+}
+
+bool Settings::qproPupils() const
+{
+	auto it = m_jsonSettings.find("qpro-pupils");
+	return it != m_jsonSettings.end() and it->is_object();
+}
+
+void Settings::set_qproPupils(const bool & value)
+{
+	auto old = qproPupils();
+	auto old_sensitivity = qproPupilSensitivity();
+	if (not value)
+		m_jsonSettings.erase("qpro-pupils");
+	else if (not m_jsonSettings["qpro-pupils"].is_object())
+		m_jsonSettings["qpro-pupils"] = {{"sensitivity", 1.4}};
+	if (old != value)
+		qproPupilsChanged();
+	if (old_sensitivity != qproPupilSensitivity())
+		qproPupilSensitivityChanged();
+}
+
+double Settings::qproPupilSensitivity() const
+{
+	auto it = m_jsonSettings.find("qpro-pupils");
+	if (it != m_jsonSettings.end() and it->is_object())
+	{
+		auto s = it->find("sensitivity");
+		if (s != it->end() and s->is_number())
+			return *s;
+	}
+	return 1.4;
+}
+
+// Only stored while enabled: the key's presence is the switch
+void Settings::set_qproPupilSensitivity(const double & value)
+{
+	auto it = m_jsonSettings.find("qpro-pupils");
+	if (it == m_jsonSettings.end() or not it->is_object())
+		return;
+	auto old = qproPupilSensitivity();
+	double rounded = std::round(std::clamp(value, 1.0, 3.0) * 10) / 10;
+	(*it)["sensitivity"] = rounded;
+	if (old != rounded)
+		qproPupilSensitivityChanged();
+}
+
 bool Settings::lhMaxExtrapolationEnabled() const
 {
 	auto it = m_jsonSettings.find("lh-max-extrapolation");
@@ -591,6 +658,8 @@ void Settings::restore_defaults()
 	m_jsonSettings.erase("hid-forwarding");
 	m_jsonSettings.erase("debug-gui");
 	m_jsonSettings.erase("use-steamvr-lh");
+	m_jsonSettings.erase("vrchat-osc");
+	m_jsonSettings.erase("qpro-pupils");
 	m_jsonSettings.erase("lh-stick-deadzone");
 	m_jsonSettings.erase("tcp-only");
 	m_jsonSettings.erase("application");

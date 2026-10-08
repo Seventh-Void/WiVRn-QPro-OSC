@@ -137,6 +137,18 @@ if (WIVRN_BUILD_SERVER)
 			driver/wivrn_connection.cpp
 			driver/xrt_cast.cpp
 
+			vrchat_osc/osc.cpp
+			vrchat_osc/oscquery.cpp
+			vrchat_osc/params.cpp
+			vrchat_osc/steamlink.cpp
+			vrchat_osc/unified.cpp
+			vrchat_osc/vrchat_osc.cpp
+
+			qpro_pupil/camera_link.cpp
+			qpro_pupil/preview_server.cpp
+			qpro_pupil/pupil_service.cpp
+			qpro_pupil/pupil_tracker.cpp
+
 			utils/wivrn_vk_bundle.cpp
 			utils/wivrn_trace.cpp
 			utils/gpu_timestamp_pool.cpp
@@ -148,6 +160,15 @@ if (WIVRN_BUILD_SERVER)
 	target_include_directories(wivrn-server PRIVATE .)
 
 	target_link_libraries(wivrn-server PRIVATE CLI11::CLI11 xrt-external-renderdoc)
+
+	# Camera pupil tracking (rooted Quest Pro): OpenCV for the pupil detector, headset helpers installed with the server
+	find_package(OpenCV REQUIRED COMPONENTS core imgproc geometry imgcodecs)
+	target_link_libraries(wivrn-server PRIVATE opencv_core opencv_imgproc opencv_geometry opencv_imgcodecs)
+	target_include_directories(wivrn-server SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
+	set(WIVRN_QPRO_HEADSET_DIR ${CMAKE_INSTALL_FULL_DATADIR}/wivrn/qpro-headset)
+	target_compile_definitions(wivrn-server PRIVATE WIVRN_QPRO_HEADSET_DIR="${WIVRN_QPRO_HEADSET_DIR}")
+	install(PROGRAMS qpro_pupil/headset/questpro-camera-injector qpro_pupil/headset/questpro-camera-relay-v8 DESTINATION ${WIVRN_QPRO_HEADSET_DIR})
+	install(FILES qpro_pupil/headset/libquestpro-camera-streamer-v8.so qpro_pupil/headset/LICENSE DESTINATION ${WIVRN_QPRO_HEADSET_DIR})
 
 	if (WIVRN_FEATURE_STEAMVR_LIGHTHOUSE)
 		target_include_directories(wivrn-server SYSTEM PRIVATE ${monado_SOURCE_DIR}/src/xrt/drivers/steamvr_lh/)
@@ -188,6 +209,21 @@ if (WIVRN_BUILD_SERVER)
 	if(WIVRN_USE_X264)
 		target_sources(wivrn-server PRIVATE encoder/video_encoder_x264.cpp)
 		target_link_libraries(wivrn-server PRIVATE PkgConfig::X264)
+	endif()
+
+	if (WIVRN_BUILD_TEST)
+		add_executable(test-vrchat-osc-params vrchat_osc/osc.cpp vrchat_osc/params.cpp vrchat_osc/test_osc_params.cpp)
+		target_link_libraries(test-vrchat-osc-params nlohmann_json::nlohmann_json)
+		add_executable(test-vrchat-osc-unified vrchat_osc/unified.cpp vrchat_osc/test_unified.cpp)
+		add_executable(test-vrchat-osc-steamlink vrchat_osc/osc.cpp vrchat_osc/steamlink.cpp vrchat_osc/unified.cpp vrchat_osc/test_steamlink.cpp)
+		add_executable(test-vrchat-osc-oscquery vrchat_osc/oscquery.cpp vrchat_osc/test_oscquery.cpp)
+		target_link_libraries(test-vrchat-osc-oscquery nlohmann_json::nlohmann_json wivrn-external)
+		add_executable(test-qpro-camera-link qpro_pupil/camera_link.cpp qpro_pupil/test_camera_link.cpp)
+		target_include_directories(test-qpro-camera-link PRIVATE .)
+		add_executable(test-qpro-preview-server qpro_pupil/preview_server.cpp qpro_pupil/test_preview_server.cpp)
+		add_executable(test-qpro-pupil-tracker qpro_pupil/pupil_tracker.cpp qpro_pupil/test_pupil_tracker.cpp)
+		target_link_libraries(test-qpro-pupil-tracker opencv_core opencv_imgproc opencv_geometry opencv_imgcodecs)
+		target_include_directories(test-qpro-pupil-tracker SYSTEM PRIVATE ${OpenCV_INCLUDE_DIRS})
 	endif()
 
 	if(WIVRN_USE_PERFETTO)

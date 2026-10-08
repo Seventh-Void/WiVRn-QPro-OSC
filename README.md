@@ -1,3 +1,109 @@
+<h1 align="center"> WiVRn-QPro-OSC </h1>
+
+<p align="center"><b>A fork of <a href="https://github.com/WiVRn/WiVRn">WiVRn</a> that sends Quest Pro face, eye, tongue and camera pupil tracking straight to VRChat and Resonite over OSC.</b></p>
+
+One app: no VRCFaceTracking, no ALXR module, no Edrakon, nothing else to run on the PC. Start WiVRn, connect the headset and jump into VRChat or Resonite.
+
+> [!IMPORTANT]
+> This is an unofficial fork. Please report problems with the additions below **here**, not to the WiVRn project.
+> Everything else is stock WiVRn 26.9, and its documentation (further down this page) applies.
+
+## What this fork adds
+
+| Feature | Where | Notes |
+|---|---|---|
+| **Face tracking over OSC (VRChat, Resonite)** | Dashboard → Settings → Advanced options | One switch for both games. Takes effect on the next headset connection. |
+| VRChat | UDP `127.0.0.1:9000` | VRCFaceTracking v2 (Unified Expressions) avatar parameters, including binary (`Name1/2/4/8…`) and `Negative` parameters. The avatar's parameters are read from VRChat's OSCQuery, so only what the avatar uses is sent. VRChat's native eye tracking (`/tracking/eye/…`) is sent for avatars without their own eye parameters. |
+| Resonite | UDP `127.0.0.1:9015` | Steam Link OSC (what Edrakon provides): face, tongue out and combined gaze. Sent only while Resonite runs and Edrakon does not. |
+| **Pupil tracking** page | Dashboard → Pupil tracking | Camera-measured pupil size on a **rooted** Quest Pro, done by WiVRn itself: it starts the eye cameras on the headset over ADB, finds the pupils and learns each eye's bright-to-dark range while you play. Live status, per-eye values and camera view. Pupils go to VRChat (`PupilDilation`, `PupilDiameter…`). |
+| Tongue | automatic | BoltOn's tongue layout ("TongueHack", FB face tracking 2 slots 63–67) is mapped to tongue out/left/right/up/down, so VRCFaceTracking's ALXR module setting is not needed. |
+
+The headset app is **unchanged**: use the normal WiVRn 26.9 app (Meta Store, or the dashboard's install wizard).
+
+## Headset side: BoltOn
+
+Face, eye and tongue tracking come from [BoltOn](https://guides.mxr.lol/guides/bolton/) on a rooted Quest Pro. Follow its guide, then leave it in **VRCFT mode** (the default): BoltOn's Direct mode does not support WiVRn, and in VRCFT mode WiVRn receives BoltOn's data and this fork takes the place of VRCFaceTracking and the ALXR Local Module on the PC.
+
+A stock (unrooted) Quest Pro also works for face and eye tracking through WiVRn, without tongue and without camera pupils.
+
+## Install
+
+### Arch Linux (and CachyOS, EndeavourOS, Manjaro…)
+
+Builds `wivrn-server` and `wivrn-dashboard` 26.9 from this fork. They replace the AUR packages of the same name and version:
+
+```sh
+git clone https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
+cd WiVRn-QPro-OSC/archlinux
+makepkg -si
+```
+
+To go back to stock WiVRn, reinstall the AUR packages (`wivrn-server`, `wivrn-dashboard`).
+
+### Other distributions (build from source)
+
+Install the build dependencies listed in [docs/building.md](docs/building.md), plus OpenCV (core, imgproc, imgcodecs), and `adb` (android-tools) for camera pupil tracking. Then:
+
+```sh
+git clone -b v26.9-qpro.1 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
+cd WiVRn-QPro-OSC
+cmake -B build -G Ninja -DGIT_TAG=v26.9 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
+      -DWIVRN_BUILD_SERVER=ON -DWIVRN_BUILD_DASHBOARD=ON -DWIVRN_BUILD_CLIENT=OFF -DWIVRN_BUILD_WIVRNCTL=ON \
+      -DWIVRN_OPENXR_MANIFEST_TYPE=relative
+cmake --build build
+sudo cmake --install build
+```
+
+`-DGIT_TAG=v26.9` keeps the version the same as upstream, so the dashboard installs the matching stock headset app.
+
+The Flatpak is not supported.
+
+## Set up
+
+### VRChat and Resonite
+
+1. Open the WiVRn dashboard → **Settings** → **Advanced options** → tick **Face tracking over OSC (VRChat, Resonite)** → **OK**.
+2. Connect the headset (reconnect if it was already connected).
+3. **VRChat:** enable OSC (Action menu → Options → OSC → Enabled) and use an avatar with VRCFaceTracking v2 parameters.
+4. **Resonite:** install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) and [RemoveThatKinkFromSteamLinkCS](https://github.com/PointerOffset/RemoveThatKinkFromSteamLinkCS) (Resonite only listens for Steam Link face tracking with it), and close Edrakon.
+
+To send to VRChat on another address, edit `~/.config/wivrn/config.json`:
+
+```json
+"vrchat-osc": { "host": "127.0.0.1", "port": 9000 }
+```
+
+### Camera pupil tracking (rooted Quest Pro)
+
+1. Root access for ADB: in Magisk → Superuser, allow **Shell**.
+2. Wireless ADB: plug the headset in over USB, open the dashboard → **Pupil tracking** → **Enable wireless ADB (USB)**, then unplug. Repeat after each headset reboot.
+3. On the same page, turn on **Camera pupil tracking** and pick a sensitivity, then connect the headset (with face tracking over OSC on).
+
+Values settle after a few minutes of play, as each eye's range is learned (bright scenes and dark scenes both help). Tick **Show cameras** to see what the eye cameras see.
+
+### Ports used
+
+| Port | Direction | Purpose |
+|---|---|---|
+| UDP 9000 | out | VRChat OSC |
+| UDP 9015 | out | Resonite (Steam Link OSC) |
+| TCP 27273 | local (ADB forward) | Eye camera stream from the headset |
+| TCP 8081 | local | Pupil status and camera view for the dashboard |
+
+## Credits and licenses
+
+- [WiVRn](https://github.com/WiVRn/WiVRn) by Guillaume Meunier and contributors (GPL-3.0). This fork is GPL-3.0 as well.
+- Expression mapping and parameter encoding follow [VRCFaceTracking](https://github.com/benaclejames/VRCFaceTracking) (Apache-2.0) and [VRCFT-ALXR-Modules](https://github.com/korejan/VRCFT-ALXR-Modules) (MIT).
+- Steam Link OSC format: [LinkFT](https://github.com/ykeara/LinkFT)'s notes (MIT) and [danwillm's VRCFT-SteamLink](https://github.com/danwillm/VRCFT-SteamLink).
+- The headset eye-camera helpers (`server/qpro_pupil/headset/`) and the pupil detector are from [Qpro-Enhanced-FT-Wireless](https://github.com/Fwooffy/Qpro-Enhanced-FT-Wireless), based on [Qpro-Enhanced-FT by n0tmast3r](https://github.com/n0tmast3r/Qpro-Enhanced-FT) (MIT, QproFaceTracking contributors).
+- [BoltOn](https://guides.mxr.lol/guides/bolton/) by Walaryne provides the headset face tracking.
+
+Not affiliated with or endorsed by WiVRn, Meta, VRChat, Resonite, VRCFaceTracking or BoltOn.
+
+---
+
+<p align="center"><i>The original WiVRn README follows.</i></p>
+
 <h1 align="center"> WiVRn </h1>
 
 <div align="center">

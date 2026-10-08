@@ -117,6 +117,15 @@ Kirigami.ScrollablePage {
                     toolTipText: i18n("Replicate mouse, keyboard and gamepad connected to the headset as virtual devices on PC.\nReplicated devices will appear as if they were plugged to the PC, some keys may be reserved by the headset OS and not be available. Gamepad is also available without virtual devices for applications that access it through OpenXR.")
                 }
             }
+            RowLayout {
+                Controls.CheckBox {
+                    id: vrchat_osc
+                    text: i18n("Face tracking over OSC (VRChat, Resonite)")
+                }
+                Kirigami.ContextualHelpButton {
+                    toolTipText: i18n("Send the headset's face and eye tracking straight to VRChat (OSC port 9000) and, while Resonite runs, to Resonite (Steam Link OSC port 9015). No VRCFaceTracking or Edrakon needed.\nResonite needs the RemoveThatKinkFromSteamLinkCS mod.\nCamera pupil sizes (Pupil tracking page) go to VRChat.\nTakes effect on the next headset connection.")
+                }
+            }
             Controls.CheckBox {
                 id: debug_gui
                 text: i18n("Enable debug window")
@@ -341,6 +350,7 @@ Kirigami.ScrollablePage {
         }
         Settings.lhStickDeadzone = lh_stick_deadzone.value;
         Settings.hidForwarding = hid_forwarding.checked;
+        Settings.vrchatOsc = vrchat_osc.checked;
 
         DashboardSettings.auto_connect_usb = auto_connect_usb.checked;
     }
@@ -353,6 +363,7 @@ Kirigami.ScrollablePage {
         lh_max_extrapolation.value = Settings.lhMaxExtrapolation;
         lh_stick_deadzone.value = Settings.lhStickDeadzone;
         hid_forwarding.checked = Settings.hidForwarding;
+        vrchat_osc.checked = Settings.vrchatOsc;
 
         auto_connect_usb.checked = DashboardSettings.auto_connect_usb;
 
