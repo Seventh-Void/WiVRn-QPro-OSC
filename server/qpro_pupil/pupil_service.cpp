@@ -116,7 +116,7 @@ void pupil_service::run(std::stop_token stop, std::string headset_ip, float sens
 				if (auto now = std::chrono::steady_clock::now(); now >= next_status)
 				{
 					float fps = frames / std::chrono::duration<float>(now - next_status + status_period).count();
-					preview.publish_status(status_json("streaming", "Tracking", &r, fps));
+					preview.publish_status(status_json("streaming", "", &r, fps));
 					next_status = now + status_period;
 					frames = 0;
 				}
