@@ -22,11 +22,13 @@ The headset app is **unchanged**: use the normal WiVRn 26.9 app (Meta Store, or 
 
 ### How it fits together
 
+**Rooted Quest Pro** (BoltOn, camera pupils):
+
 ```mermaid
 flowchart LR
-    subgraph Headset["Quest Pro"]
-        BoltOn["Face, eyes, tongue<br/>(stock, or BoltOn if rooted)"]
-        Cameras["Eye cameras<br/>(rooted only)"]
+    subgraph Headset["Quest Pro (rooted)"]
+        BoltOn["BoltOn<br/>face, eyes, tongue"]
+        Cameras["Eye cameras"]
     end
     subgraph PC["PC: WiVRn-QPro-OSC"]
         Server["wivrn-server"]
@@ -41,6 +43,27 @@ flowchart LR
     Cameras -- "ADB" --> Pupils
     Pupils -- "pupil size" --> Server
     Pupils -- "status, camera view" --> Dashboard
+    Server --> VRChat
+    Server --> Resonite
+```
+
+**Stock Quest Pro** (no root):
+
+```mermaid
+flowchart LR
+    subgraph Headset["Quest Pro (stock)"]
+        Native["Meta face tracking<br/>face, eyes, tongue out"]
+    end
+    subgraph PC["PC: WiVRn-QPro-OSC"]
+        Server["wivrn-server"]
+        Dashboard["WiVRn dashboard"]
+    end
+    subgraph Games["Games"]
+        VRChat["VRChat<br/>OSC, port 9000"]
+        Resonite["Resonite<br/>Steam Link OSC, port 9015"]
+    end
+    Native -- "WiVRn stream" --> Server
+    Dashboard -- "settings" --> Server
     Server --> VRChat
     Server --> Resonite
 ```
@@ -70,17 +93,6 @@ There is one release for everyone. Camera pupil tracking is off until you turn i
 | Camera pupil size | ❌ | ✅ |
 
 ### Stock Quest Pro (no root)
-
-```mermaid
-flowchart LR
-    Headset["Quest Pro (stock)<br/>WiVRn app: face, eyes, tongue out"]
-    Server["PC: wivrn-server<br/>(pupil tracking off, no ADB)"]
-    VRChat["VRChat<br/>OSC, port 9000"]
-    Resonite["Resonite<br/>Steam Link OSC, port 9015"]
-    Headset -- "WiVRn stream" --> Server
-    Server --> VRChat
-    Server --> Resonite
-```
 
 1. On the headset: **Settings → Movement tracking** → turn on **Eye tracking** and **Face tracking**.
 2. In the WiVRn headset app: **Settings** → turn on **Face tracking** and **Eye tracking**, and allow the permissions it asks for.
