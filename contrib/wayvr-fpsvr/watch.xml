@@ -1,0 +1,296 @@
+<layout>
+  <theme>
+    <var key="clock0_size" value="46" />
+    <var key="clock0_date_size" value="16" />
+    <var key="clock0_dow_size" value="16" />
+
+    <!-- White theme: change these to recolor the whole watch -->
+    <var key="color_bg" value="#101010" />
+    <var key="color_text" value="#FFFFFF" />
+    <var key="color_accent" value="#FFFFFF" />
+    <var key="color_accent_translucent" value="#FFFFFF99" />
+    <var key="color_accent_40" value="#FFFFFF66" />
+    <var key="color_accent_10" value="#FFFFFF1A" />
+    <var key="color_faded" value="#C8C8C8" />
+    <var key="color_faded_20" value="#C8C8C855" />
+  </theme>
+
+  <macro name="decorative_rect"
+         padding="8" color="~color_bg"
+         border="2" border_color="~color_accent" round="8" />
+
+  <macro name="button_style"
+         padding="8"
+         border_color="~color_accent_translucent"
+         border="2"
+         round="8"
+         color="~color_accent_40"
+         color2="~color_accent_10"
+         gradient="vertical"
+         align_items="center"
+         justify_content="center" />
+
+  <template name="Device">
+    <rectangle macro="decorative_rect"
+               padding_top="4"
+               padding_bottom="4"
+               align_items="center"
+               gap="8">
+      <sprite width="32" height="32" src_builtin="${src}" color="~color_text" />
+      <label _source="battery" _device="${idx}" size="24" weight="bold" />
+    </rectangle>
+  </template>
+
+  <template name="Hmd">
+    <Device idx="${idx}" src="watch/hmd.svg" />
+  </template>
+
+  <template name="LeftHand">
+    <Device idx="${idx}" src="watch/controller_l.svg" />
+  </template>
+
+  <template name="RightHand">
+    <Device idx="${idx}" src="watch/controller_r.svg" />
+  </template>
+
+  <template name="Tracker">
+    <Device idx="${idx}" src="watch/track.svg" />
+  </template>
+
+  <template name="Screen">
+    <Button macro="button_style"
+            id="overlay_${idx}"
+            tooltip_str="${name}"
+            _press="::OverlayToggle ${name}">
+      <sprite width="38" height="38" color="~color_text" src_builtin="edit/screen.svg" />
+      <div position="absolute" margin_top="-7" margin_left="-1">
+        <label text="${display}" size="18" color="~color_faded_20" weight="bold" />
+      </div>
+    </Button>
+  </template>
+
+  <template name="Panel">
+    <Button macro="button_style"
+            id="overlay_${idx}"
+            tooltip_str="${name}"
+            _press="::OverlayToggle ${name}">
+      <sprite width="38" height="38" color="~color_text" src_builtin="edit/panel.svg" />
+    </Button>
+  </template>
+
+  <template name="Mirror">
+    <Button macro="button_style"
+            id="overlay_${idx}"
+            tooltip_str="${name}"
+            _press="::OverlayToggle ${name}">
+      <sprite width="38" height="38" color="~color_text" src_builtin="edit/mirror.svg" />
+      <div position="absolute" margin_top="5" margin_left="13">
+        <label text="${display}" size="20" color="~color_faded_20" weight="bold" />
+      </div>
+    </Button>
+  </template>
+
+  <template name="App">
+    <Button macro="button_style"
+            id="overlay_${idx}"
+            tooltip_str="${name}"
+            _press="::OverlayToggle ${name}">
+      <sprite width="38" height="38" color="~color_text" src_ext="${icon}" />
+    </Button>
+  </template>
+
+  <template name="Set">
+    <Button macro="button_style"
+            id="set_${idx}"
+            _press="::SetToggle ${idx}"
+            tooltip="WATCH.SWITCH_TO_SET"
+            tooltip_side="top">
+      <sprite width="38" height="38" color="~color_text" src_builtin="watch/set2.svg" />
+      <div position="absolute" margin_top="9">
+        <label text="${display}" size="24" color="#00050F" weight="bold" />
+      </div>
+    </Button>
+  </template>
+
+  <template name="Clock">
+    <div gap="12" flex_direction="column" padding="4">
+      <div flex_direction="column">
+        <label text="11:22 PM"
+               _source="clock"
+               _display="time"
+               color="~color_text"
+               size="~clock0_size"
+               weight="bold"
+               align="center" />
+        <div padding_left="2"
+             gap="16"
+             flex_direction="row"
+             justify_content="center">
+          <label text="Tue"
+                 _source="clock"
+                 _display="dow_short"
+                 color="~color_text"
+                 size="~clock0_dow_size"
+                 weight="bold" />
+          <label text="22/2/2022"
+                 _source="clock"
+                 _display="date"
+                 color="~color_text"
+                 size="~clock0_date_size"
+                 weight="bold" />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- fpsVR-style column: header with frame time, graph, temp/load, memory -->
+    <template name="StatColumn">
+      <div flex_direction="column" gap="2">
+        <div justify_content="space_between" width="100%">
+          <label text="${name}" size="14" color="~color_faded" weight="bold" />
+          <label id="fv_${key}_ms" text="-- ms" size="14" color="~color_text" weight="bold" />
+        </div>
+        <rectangle border="1" border_color="~color_accent_40" round="4">
+          <sprite id="fv_${key}_graph" width="150" height="36" />
+        </rectangle>
+        <label id="fv_${key}" text="--" size="13" color="~color_text" />
+        <label id="${extra}" text="--" size="13" color="~color_faded" />
+      </div>
+    </template>
+
+    <template name="VerticalSeparator">
+      <rectangle width="2" height="100%" color="~color_accent" />
+    </template>
+
+    <elements>
+      <div padding="32"
+           interactable="0"
+           flex_direction="column"
+           gap="8">
+
+        <!-- Devices -->
+        <div id="devices_root"
+             interactable="0"
+             gap="6"
+             width="100%"
+             max_width="400"
+             flex_direction="row"
+             flex_wrap="wrap">
+          <Hmd idx="0" />
+          <LeftHand idx="1" />
+          <RightHand idx="2" />
+          <Tracker idx="3" />
+        </div>
+
+        <!-- Main container -->
+        <div flex_direction="column" gap="8" min_width="300">
+
+          <rectangle macro="decorative_rect"
+                     flex_direction="row"
+                     gap="8"
+                     justify_content="space_evenly">
+
+            <!-- Clock -->
+            <div id="clock_root">
+              <Clock />
+            </div>
+
+            <!-- Buttons -->
+            <div flex_direction="column" gap="8">
+
+              <div gap="8">
+                <Button id="btn_keyboard"
+                        macro="button_style"
+                        _press="::OverlayToggle kbd"
+                        tooltip="EDIT_MODE.KEYBOARD"
+                        tooltip_side="left">
+                  <sprite src_builtin="watch/keyboard.svg"
+                          color="~color_text"
+                          width="40"
+                          height="40" />
+                  </Button>
+
+                  <Button id="btn_edit_mode"
+                          macro="button_style"
+                          _press="::EditToggle"
+                          tooltip="WATCH.EDIT_MODE"
+                          tooltip_side="left">
+                    <sprite color="~color_text"
+                            width="40"
+                            height="40"
+                            src="watch/edit.svg" />
+                    </Button>
+                  </div>
+
+                  <div gap="8">
+                    <Button macro="button_style"
+                            _press="::PlayspaceRecenter"
+                            tooltip="WATCH.RECENTER"
+                            tooltip_side="left">
+                      <sprite width="40"
+                              height="40"
+                              color="~color_text"
+                              src="watch/recenter.svg" />
+                      </Button>
+
+                      <Button macro="button_style"
+                              _press="::PlayspaceFixFloor"
+                              tooltip="WATCH.FIX_FLOOR"
+                              tooltip_side="left">
+                        <sprite width="40"
+                                height="40"
+                                color="~color_text"
+                                src="watch/fix-floor.svg" />
+                        </Button>
+                      </div>
+
+                    </div>
+                  </rectangle>
+
+                  <!-- Bottom row -->
+                  <div flex_direction="row" gap="8">
+
+                    <div gap="4">
+                      <Button id="btn_dashboard"
+                              macro="button_style"
+                              _press="::DashToggle"
+                              tooltip="WATCH.DASHBOARD"
+                              tooltip_side="top">
+                        <sprite color="~color_text"
+                                width="40"
+                                height="40"
+                                src="watch/wayvr_dashboard_mono.svg" />
+                        </Button>
+                      </div>
+
+                      <VerticalSeparator />
+
+                      <div id="sets_root" gap="4">
+                        <Set idx="0" display="1" />
+                        <Set idx="1" display="2" />
+                      </div>
+
+                      <div id="panels_root" gap="4" display="none">
+                        <Screen idx="0" display="H1" name="HDMI-A-1" />
+                        <Screen idx="1" display="D2" name="DP-2" />
+                      </div>
+
+                    </div>
+
+                  <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file) -->
+                  <rectangle macro="decorative_rect" flex_direction="column" gap="4">
+                    <label id="fv_title" text="No VR app" size="14" color="~color_accent" weight="bold" />
+                    <div gap="8">
+                      <StatColumn name="GPU" key="gpu" extra="fv_vram" />
+                      <StatColumn name="CPU" key="cpu" extra="fv_ram" />
+                    </div>
+                    <div gap="16">
+                      <label id="fv_fps" text="FPS --" size="13" color="~color_text" weight="bold" />
+                      <label id="fv_avg_fps" text="Avg --" size="13" color="~color_faded" />
+                    </div>
+                  </rectangle>
+                  </div>
+                </div>
+              </elements>
+
+            </layout>

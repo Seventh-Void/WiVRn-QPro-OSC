@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""fpsVR-style stats panel on the WayVR watch.
+
+Per-frame CPU/GPU times and the name of the focused VR app come from
+/dev/shm/wivrn-frametime, written by wivrn-server from WiVRn-QPro-OSC
+(v26.9-qpro.3 or later). Temps, load, VRAM and RAM come from sysfs/procfs.
+Everything goes to the watch through one persistent `wayvrctl batch` pipe.
+Values that can't be read on this machine stay "--"; nothing is estimated.
+
+Started by wayvr-stats.path whenever WayVR (re)writes its pid file; exits once
+that WayVR is gone.
+"""
+import collections
+import glob
+import mmap
+import os
+import struct
+import subprocess
+import time
+
+SHM = "/dev/shm/wivrn-frametime"
+RUNDIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+GRAPH = os.path.join(RUNDIR, "wayvr-stats-{}-{}.svg")  # alternates 0/1 so WayVR never reads a half-written file
+PIDFILE = os.path.join(RUNDIR, "wayvr.pid")
+W, H = 150, 36                      # must match the fv_*_graph sprites in watch.xml; 1 px per frame
+GRAPH_HZ, LABEL_HZ = 15, 3
+COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # graph color, #RRGGBB
+# Layout from app_pacer.cpp: u64 count, u32 period_us, u32 reserved, char app_name[64], frames
+HDR, NAME, FRAME, RING = struct.Struct("=QII"), 64, struct.Struct("=II"), 256
+FRAMES_AT = HDR.size + NAME
+GIB = 1 << 30
+
+
+def hwmon(name):
+    for h in glob.glob("/sys/class/hwmon/hwmon*"):
+        if open(f"{h}/name").read().strip() == name:
+            return h
+    return None
+
+
+# hwmon numbers change between boots, so look sensors up by driver name.
+# amdgpu temp2 = junction (hotspot); k10temp temp1 = Tctl; coretemp temp1 = package.
+GPU_MON, CPU_MON = hwmon("amdgpu"), hwmon("k10temp") or hwmon("coretemp")
+
+
+def num(path, default=0):
+    try:
+        return int(open(path).read())
+    except (OSError, ValueError, TypeError):
+        return default
+
+
+def wayvr_pid():
+    try:
+        pid = open(PIDFILE).read().strip()
+    except OSError:
+        return None
+    return pid if pid and os.path.exists(f"/proc/{pid}") else None
+
+
+def cpu_times():
+    v = list(map(int, open("/proc/stat").readline().split()[1:9]))
+    return sum(v), v[3] + v[4]  # total, idle + iowait
+
+
+def ram_gib():
+    m = dict(line.split()[:2] for line in open("/proc/meminfo"))
+    return (int(m["MemTotal:"]) - int(m["MemAvailable:"])) * 1024 / GIB, int(m["MemTotal:"]) * 1024 / GIB
+
+
+def quote(s):
+    return "'" + s.replace("'", "'\\''") + "'"
+
+
+def svg(values, period_us):
+    top = 3 * period_us // 2  # dashed line = frame budget, at 2/3 height
+    x0 = W - len(values)
+    pts = " ".join(f"{x0 + i},{H - min(v, top) * H // top}" for i, v in enumerate(values))
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}">'
+            f'<polygon points="{x0},{H} {pts} {W - 1},{H}" fill="{COLOR}55" stroke="{COLOR}" stroke-width="1"/>'
+            f'<path d="M0 {H - period_us * H // top} H{W}" stroke="{COLOR}88" stroke-dasharray="3 3"/></svg>')
+
+
+def duration(s):
+    m = int(s // 60)
+    return f"{m} min" if m < 60 else f"{m // 60} h {m % 60} min"
+
+
+def run(pid):
+    ctl = subprocess.Popen(["wayvrctl", "batch", "--fail-fast"], stdin=subprocess.PIPE,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
+    shown = {}  # element id -> text currently on the watch
+
+    def label(wid, text):
+        if shown.get(wid) != text:
+            shown[wid] = text
+            ctl.stdin.write(f"panel-modify watch {wid} set-text -- {quote(text)}\n")
+
+    shm, last, flip = None, 0, 0
+    cpu_hist, gpu_hist = collections.deque(maxlen=W), collections.deque(maxlen=W)
+    recent = collections.deque()  # (arrival time, cpu_us, gpu_us) over the last second
+    app, app_start, app_frames = "", 0.0, 0
+    period_us, next_label, prev_label = 11111, 0.0, time.monotonic()
+    pt, pi = cpu_times()
+
+    try:
+        while os.path.exists(f"/proc/{pid}") and ctl.poll() is None:
+            now = time.monotonic()
+
+            if shm is None and os.path.exists(SHM) and os.path.getsize(SHM) >= FRAMES_AT + RING * FRAME.size:
+                with open(SHM, "rb") as f:
+                    shm = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
+                last = HDR.unpack_from(shm)[0]  # start from now, skip old frames
+
+            new = 0
+            if shm is not None:
+                count, period_us, _ = HDR.unpack_from(shm)
+                period_us = period_us or 11111
+                name = shm[HDR.size:FRAMES_AT].split(b"\0", 1)[0].decode(errors="replace")
+                name = name if len(name) <= 30 else name[:29] + "…"  # fit the watch width
+                if name != app:  # new focused app: restart session stats
+                    app, app_start, app_frames = name, now, 0
+                    cpu_hist.clear(), gpu_hist.clear()
+                if count < last:  # wivrn-server restarted
+                    last = count
+                for n in range(max(last, count - RING), count):
+                    c, g = FRAME.unpack_from(shm, FRAMES_AT + (n % RING) * FRAME.size)
+                    cpu_hist.append(c), gpu_hist.append(g), recent.append((now, c, g))
+                    new += 1
+                last = count
+            while recent and recent[0][0] < now - 1:
+                recent.popleft()
+
+            if new:
+                for key, hist in (("gpu", gpu_hist), ("cpu", cpu_hist)):
+                    path = GRAPH.format(key, flip)
+                    with open(path, "w") as f:
+                        f.write(svg(hist, period_us))
+                    ctl.stdin.write(f"panel-modify watch fv_{key}_graph set-image {path}\n")
+                flip ^= 1
+
+            if now >= next_label:
+                next_label = now + 1 / LABEL_HZ
+                active = bool(app and recent)
+                if active:
+                    app_frames += sum(1 for r in recent if r[0] > prev_label)
+                prev_label = now
+
+                if active:
+                    n = len(recent)
+                    label("fv_title", f"{app} - {duration(now - app_start)}")
+                    label("fv_fps", f"FPS {n}" if now - app_start >= 1 else "FPS --")  # needs a full 1 s window
+                    label("fv_avg_fps", f"Avg {app_frames / max(now - app_start, 1e-3):.1f}")
+                    label("fv_gpu_ms", f"{sum(r[2] for r in recent) / n / 1000:.1f} ms")
+                    label("fv_cpu_ms", f"{sum(r[1] for r in recent) / n / 1000:.1f} ms")
+                else:
+                    label("fv_title", app or "No VR app")
+                    label("fv_fps", "FPS --")
+                    label("fv_gpu_ms", "-- ms")
+                    label("fv_cpu_ms", "-- ms")
+
+                t, i = cpu_times()
+                cpu_load, pt, pi = 100 * ((t - pt) - (i - pi)) // max(t - pt, 1), t, i
+                temp = f"{num(f'{CPU_MON}/temp1_input') // 1000}°C  " if CPU_MON else ""
+                label("fv_cpu", f"{temp}{cpu_load}%")
+                if GPU_MON:
+                    dev = f"{GPU_MON}/device"
+                    label("fv_gpu", f"{num(f'{GPU_MON}/temp2_input') // 1000}°C  {num(f'{dev}/gpu_busy_percent')}%")
+                    label("fv_vram", f"VRAM {num(f'{dev}/mem_info_vram_used') / GIB:.1f}/{num(f'{dev}/mem_info_vram_total') / GIB:.1f} GB")
+                used, total = ram_gib()
+                label("fv_ram", f"RAM {used:.1f}/{total:.1f} GB")
+
+            ctl.stdin.flush()
+            time.sleep(1 / GRAPH_HZ)
+    except BrokenPipeError:
+        pass
+    finally:
+        ctl.kill()
+
+
+# wayvrctl exits if WayVR's IPC isn't up yet or goes away; retry while a
+# WayVR (incl. a replacement instance) is running.
+while pid := wayvr_pid():
+    run(pid)
+    time.sleep(2)

@@ -1,0 +1,8 @@
+[Unit]
+Description=Start the WayVR watch stats panel when WayVR starts
+
+[Path]
+PathChanged=%t/wayvr.pid
+
+[Install]
+WantedBy=default.target
