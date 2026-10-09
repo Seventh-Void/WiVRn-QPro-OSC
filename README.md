@@ -16,7 +16,7 @@ One app: no VRCFaceTracking, no ALXR module, no Edrakon, nothing else to run on 
 | VRChat | UDP `127.0.0.1:9000` | VRCFaceTracking v2 (Unified Expressions) avatar parameters, including binary (`Name1/2/4/8…`) and `Negative` parameters. The avatar's parameters are read from VRChat's OSCQuery, so only what the avatar uses is sent. VRChat's native eye tracking (`/tracking/eye/…`) is sent for avatars without their own eye parameters. |
 | Resonite | UDP `127.0.0.1:9015` | Steam Link OSC (what Edrakon provides): face, tongue out and combined gaze. Sent only while Resonite runs and Edrakon does not. |
 | **Pupil tracking** page | Dashboard → Pupil tracking | Camera-measured pupil size on a **rooted** Quest Pro, done by WiVRn itself: it starts the eye cameras on the headset over ADB, finds the pupils and learns each eye's bright-to-dark range while you play. Live status, per-eye values and camera view. Pupils go to VRChat (`PupilDilation`, `PupilDiameter…`). |
-| Tongue | automatic | Rooted only for directions: BoltOn's tongue layout ("TongueHack", FB face tracking 2 slots 63–67) is mapped to tongue out/left/right/up/down, so VRCFaceTracking's ALXR module setting is not needed. |
+| Tongue | automatic | Tongue out works on any Quest Pro. Advanced tongue tracking (left/right/up/down) needs BoltOn: its's tongue layout ("TongueHack", FB face tracking 2 slots 63–67) is mapped to tongue out/left/right/up/down, so VRCFaceTracking's ALXR module setting is not needed. |
 
 The headset app is **unchanged**: use the normal WiVRn 26.9 app (Meta Store, or the dashboard's install wizard).
 
@@ -65,15 +65,15 @@ There is one release for everyone. Camera pupil tracking is off until you turn i
 |---|---|---|
 | Face expressions (VRChat, Resonite) | ✅ | ✅ |
 | Eye gaze and blinking | ✅ | ✅ |
-| Tongue out | ✅ if Meta's tracking reports it | ✅ |
-| Tongue left / right / up / down | ❌ | ✅ |
+| Tongue out | ✅ (native) | ✅ |
+| Advanced tongue tracking (left / right / up / down) | ❌ | ✅ |
 | Camera pupil size | ❌ | ✅ |
 
 ### Stock Quest Pro (no root)
 
 ```mermaid
 flowchart LR
-    Headset["Quest Pro (stock)<br/>WiVRn app: face + eye tracking"]
+    Headset["Quest Pro (stock)<br/>WiVRn app: face, eyes, tongue out"]
     Server["PC: wivrn-server<br/>(pupil tracking off, no ADB)"]
     VRChat["VRChat<br/>OSC, port 9000"]
     Resonite["Resonite<br/>Steam Link OSC, port 9015"]
