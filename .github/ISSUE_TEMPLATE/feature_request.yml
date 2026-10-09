@@ -17,3 +17,9 @@ body:
     id: why
     attributes:
       label: Why would it help?
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context (optional)
+      description: Screenshots, links, examples, how you'd like it to work…

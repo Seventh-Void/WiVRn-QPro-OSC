@@ -79,5 +79,5 @@ body:
   - type: textarea
     id: extra
     attributes:
-      label: Anything else?
+      label: Additional context (optional)
       description: Screenshots (e.g. the Pupil tracking page), avatar used, does it also happen with stock WiVRn…
