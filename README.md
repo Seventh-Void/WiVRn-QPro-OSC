@@ -53,8 +53,8 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img src="images/fork/pupil-tracking.png" width="600" alt="WiVRn Pupil tracking page with camera pupil tracking switch, sensitivity, status and per-eye values"><br>
-  <i>Pupil tracking page (rendered with sample values)</i>
+  <img src="images/fork/pupil-tracking.png" width="700" alt="WiVRn Pupil tracking page tracking both eyes on a Quest Pro, with the live eye camera view and the detected pupils outlined"><br>
+  <i>Pupil tracking page on a Quest Pro with BoltOn: both pupils detected, live eye camera view</i>
 </p>
 
 ## Headset side: BoltOn
