@@ -17,6 +17,7 @@ One app: no VRCFaceTracking, no ALXR module, no Edrakon, nothing else to run on 
 | Resonite | UDP `127.0.0.1:9015` | Steam Link OSC (what Edrakon provides): face, tongue out and combined gaze. Sent only while Resonite runs and Edrakon does not. |
 | **Pupil tracking** page | Dashboard → Pupil tracking | Camera-measured pupil size on a **rooted** Quest Pro, done by WiVRn itself: it starts the eye cameras on the headset over ADB, finds the pupils and learns each eye's bright-to-dark range while you play. Live status, per-eye values and camera view. Pupils go to VRChat (`PupilDilation`, `PupilDiameter…`). |
 | Tongue | automatic | Tongue out works on any Quest Pro. Advanced tongue tracking (left/right/up/down) needs BoltOn, whose tongue layout ("TongueHack", FB face tracking 2 slots 63–67) is mapped to tongue out/left/right/up/down, so VRCFaceTracking's ALXR module setting is not needed. |
+| **Frame timing for overlays** (fpsVR-style) | `/dev/shm/wivrn-frametime`, [contrib/wayvr-fpsvr](contrib/wayvr-fpsvr) | WiVRn publishes each frame's CPU and GPU time for the focused app, with its name. The contrib folder puts it on the [WayVR](https://github.com/wlx-team/wayvr) watch: frame time graphs, FPS, temperatures, load and memory. |
 
 The headset app is **unchanged**: use the normal WiVRn 26.9 app (Meta Store, or the dashboard's install wizard).
 
@@ -121,7 +122,7 @@ To go back to stock WiVRn, install the AUR packages again (for example `yay -S w
 Install the build dependencies listed in [docs/building.md](docs/building.md), plus OpenCV (core, imgproc, imgcodecs), and `adb` (android-tools) for camera pupil tracking. Then:
 
 ```sh
-git clone -b v26.9-qpro.2 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
+git clone -b v26.9-qpro.3 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
 cd WiVRn-QPro-OSC
 cmake -B build -G Ninja -DGIT_TAG=v26.9 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
       -DWIVRN_BUILD_SERVER=ON -DWIVRN_BUILD_DASHBOARD=ON -DWIVRN_BUILD_CLIENT=OFF -DWIVRN_BUILD_WIVRNCTL=ON \
