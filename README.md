@@ -12,7 +12,7 @@ One app: no VRCFaceTracking, no ALXR module, no Edrakon, nothing else to run on 
 
 | Feature | Where | Notes |
 |---|---|---|
-| **Face tracking over OSC (VRChat, Resonite)** | Dashboard → Settings → Advanced options | One switch for both games. Takes effect on the next headset connection. |
+| **Face tracking over OSC (VRChat, Resonite)** | Dashboard → Settings → Advanced options | One switch for both games. Takes effect when the server restarts (the dashboard offers **Restart now**). |
 | VRChat | UDP `127.0.0.1:9000` | VRCFaceTracking v2 (Unified Expressions) avatar parameters, including binary (`Name1/2/4/8…`) and `Negative` parameters. The avatar's parameters are read from VRChat's OSCQuery, so only what the avatar uses is sent. VRChat's native eye tracking (`/tracking/eye/…`) is sent for avatars without their own eye parameters. |
 | Resonite | UDP `127.0.0.1:9015` | Steam Link OSC (what Edrakon provides): face, tongue out and combined gaze. Sent only while Resonite runs and Edrakon does not. |
 | **Pupil tracking** page | Dashboard → Pupil tracking | Camera-measured pupil size on a **rooted** Quest Pro, done by WiVRn itself: it starts the eye cameras on the headset over ADB, finds the pupils and learns each eye's bright-to-dark range while you play. Live status, per-eye values and camera view. Pupils go to VRChat (`PupilDilation`, `PupilDiameter…`). |
@@ -100,7 +100,7 @@ The Flatpak is not supported.
 ### VRChat and Resonite
 
 1. Open the WiVRn dashboard → **Settings** → **Advanced options** → tick **Face tracking over OSC (VRChat, Resonite)** → **OK**.
-2. Connect the headset (reconnect if it was already connected).
+2. If the server was already running, restart it (**Restart now** in the dashboard), then connect the headset.
 3. **VRChat:** enable OSC (Action menu → Options → OSC → Enabled) and use an avatar with VRCFaceTracking v2 parameters.
 4. **Resonite:** install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) and [RemoveThatKinkFromSteamLinkCS](https://github.com/PointerOffset/RemoveThatKinkFromSteamLinkCS) (Resonite only listens for Steam Link face tracking with it), and close Edrakon.
 
@@ -114,7 +114,7 @@ To send to VRChat on another address, edit `~/.config/wivrn/config.json`:
 
 1. Root access for ADB: in Magisk → Superuser, allow **Shell**.
 2. Wireless ADB: plug the headset in over USB, open the dashboard → **Pupil tracking** → **Enable wireless ADB (USB)**, then unplug. Repeat after each headset reboot.
-3. On the same page, turn on **Camera pupil tracking** and pick a sensitivity, then connect the headset (with face tracking over OSC on).
+3. On the same page, turn on **Camera pupil tracking** and pick a sensitivity, press **Restart now** if the server was running, then connect the headset (with face tracking over OSC on).
 
 Values settle after a few minutes of play, as each eye's range is learned (bright scenes and dark scenes both help). Tick **Show cameras** to see what the eye cameras see.
 

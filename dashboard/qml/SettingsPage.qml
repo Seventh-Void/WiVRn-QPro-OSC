@@ -123,7 +123,7 @@ Kirigami.ScrollablePage {
                     text: i18n("Face tracking over OSC (VRChat, Resonite)")
                 }
                 Kirigami.ContextualHelpButton {
-                    toolTipText: i18n("Send the headset's face and eye tracking straight to VRChat (OSC port 9000) and, while Resonite runs, to Resonite (Steam Link OSC port 9015). No VRCFaceTracking or Edrakon needed.\nResonite needs the RemoveThatKinkFromSteamLinkCS mod.\nCamera pupil sizes (Pupil tracking page) go to VRChat.\nTakes effect on the next headset connection.")
+                    toolTipText: i18n("Send the headset's face and eye tracking straight to VRChat (OSC port 9000) and, while Resonite runs, to Resonite (Steam Link OSC port 9015). No VRCFaceTracking or Edrakon needed.\nResonite needs the RemoveThatKinkFromSteamLinkCS mod.\nCamera pupil sizes (Pupil tracking page) go to VRChat.\nTakes effect when the server restarts.")
                 }
             }
             Controls.CheckBox {

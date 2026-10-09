@@ -16,6 +16,38 @@ Kirigami.ScrollablePage {
     property bool streaming: QproPupil.state == "streaming"
 
     ColumnLayout {
+        // Same banner as the main page: the server reads its configuration when it starts
+        Kirigami.InlineMessage {
+            id: pupil_restart
+            Layout.fillWidth: true
+            text: i18n("Restart the server for this change to take effect")
+            type: Kirigami.MessageType.Information
+            showCloseButton: true
+            visible: false
+            actions: [
+                Kirigami.Action {
+                    text: i18nc("restart the server", "Restart now")
+                    onTriggered: {
+                        WivrnServer.restart_server();
+                        pupil_restart.visible = false;
+                    }
+                }
+            ]
+            Connections {
+                target: Settings
+                function onSettingsChanged() {
+                    if (WivrnServer.sessionRunning)
+                        pupil_restart.visible = true;
+                }
+            }
+            Connections {
+                target: WivrnServer
+                function onServerStatusChanged(value) {
+                    pupil_restart.visible = false;
+                }
+            }
+        }
+
         anchors.fill: parent
 
         Kirigami.InlineMessage {
@@ -39,7 +71,7 @@ Kirigami.ScrollablePage {
                     }
                 }
                 Kirigami.ContextualHelpButton {
-                    toolTipText: i18n("wivrn-server measures your pupils with the Quest Pro eye cameras. Needs a rooted headset reachable over wireless ADB.\nApplies on the next headset connection.")
+                    toolTipText: i18n("wivrn-server measures your pupils with the Quest Pro eye cameras. Needs a rooted headset reachable over wireless ADB.\nApplies when the server restarts.")
                 }
             }
 
@@ -65,7 +97,7 @@ Kirigami.ScrollablePage {
             }
 
             Controls.Label {
-                text: pupil_page.server_started ? i18n("Changes are saved immediately and apply on the next headset connection.") : i18n("Start the server to change these settings.")
+                text: pupil_page.server_started ? i18n("Changes are saved immediately and apply when the server restarts.") : i18n("Start the server to change these settings.")
                 font: Kirigami.Theme.smallFont
                 wrapMode: Text.Wrap
                 Layout.fillWidth: true
