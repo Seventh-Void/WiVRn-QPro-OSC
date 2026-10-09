@@ -20,6 +20,39 @@ One app: no VRCFaceTracking, no ALXR module, no Edrakon, nothing else to run on 
 
 The headset app is **unchanged**: use the normal WiVRn 26.9 app (Meta Store, or the dashboard's install wizard).
 
+### How it fits together
+
+```mermaid
+flowchart LR
+    subgraph Headset["Quest Pro (rooted)"]
+        BoltOn["BoltOn<br/>face, eyes, tongue"]
+        Cameras["Eye cameras"]
+    end
+    subgraph PC["PC: WiVRn-QPro-OSC"]
+        Server["wivrn-server"]
+        Pupils["Pupil tracker"]
+        Dashboard["WiVRn dashboard"]
+    end
+    BoltOn -- "WiVRn stream" --> Server
+    Cameras -- "ADB" --> Pupils
+    Pupils -- "pupil size" --> Server
+    Pupils -- "status, camera view" --> Dashboard
+    Server -- "OSC :9000" --> VRChat
+    Server -- "Steam Link OSC :9015" --> Resonite
+```
+
+### Screenshots
+
+<p align="center">
+  <img src="images/fork/settings-osc.png" width="600" alt="WiVRn Settings, Advanced options: Face tracking over OSC (VRChat, Resonite) checkbox"><br>
+  <i>Settings → Advanced options: one switch for VRChat and Resonite</i>
+</p>
+
+<p align="center">
+  <img src="images/fork/pupil-tracking.png" width="600" alt="WiVRn Pupil tracking page with camera pupil tracking switch, sensitivity, status and per-eye values"><br>
+  <i>Pupil tracking page (rendered with sample values)</i>
+</p>
+
 ## Headset side: BoltOn
 
 Face, eye and tongue tracking come from [BoltOn](https://guides.mxr.lol/guides/bolton/) on a rooted Quest Pro. Follow its guide, then leave it in **VRCFT mode** (the default): BoltOn's Direct mode does not support WiVRn, and in VRCFT mode WiVRn receives BoltOn's data and this fork takes the place of VRCFaceTracking and the ALXR Local Module on the PC.
