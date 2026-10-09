@@ -33,12 +33,16 @@ flowchart LR
         Pupils["Pupil tracker"]
         Dashboard["WiVRn dashboard"]
     end
+    subgraph Games["Games"]
+        VRChat["VRChat<br/>OSC, port 9000"]
+        Resonite["Resonite<br/>Steam Link OSC, port 9015"]
+    end
     BoltOn -- "WiVRn stream" --> Server
     Cameras -- "ADB" --> Pupils
     Pupils -- "pupil size" --> Server
     Pupils -- "status, camera view" --> Dashboard
-    Server -- "OSC :9000" --> VRChat
-    Server -- "Steam Link OSC :9015" --> Resonite
+    Server --> VRChat
+    Server --> Resonite
 ```
 
 ### Screenshots
