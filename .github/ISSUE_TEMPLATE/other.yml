@@ -1,7 +1,9 @@
 name: Other
-description: Use this template for anything else
+description: Questions or anything that isn't a bug or feature request.
 
 body:
   - type: textarea
     attributes:
-      label: Add a description
+      label: Description
+    validations:
+      required: true

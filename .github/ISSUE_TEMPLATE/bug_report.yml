@@ -1,111 +1,83 @@
-name: Bug Report
-description: Create a report to help us improve WiVRn.
+name: Bug report
+description: Something in WiVRn-QPro-OSC doesn't work (face tracking over OSC, VRChat, Resonite, pupils, dashboard, install).
 title: "[Bug]: "
 labels:
   - bug
 
 body:
-  - type: textarea
+  - type: markdown
     attributes:
-      label: Describe the bug
-      description: A clear and concise description of what the bug is.
-      placeholder: Please describe the bug here...
+      value: |
+        Thanks for reporting! Please check the [README setup steps](https://github.com/Seventh-Void/WiVRn-QPro-OSC#set-up) first.
+        Only the first three questions are required; the rest helps fix it faster.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What isn't working?
+      options:
+        - Face / eye tracking in VRChat
+        - Face / eye tracking in Resonite
+        - Tongue tracking
+        - Camera pupil tracking
+        - Dashboard
+        - Installing or building
+        - Something else in WiVRn (streaming, connection, controllers…)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: headset
+    attributes:
+      label: Headset setup
+      options:
+        - Stock Quest Pro (not rooted)
+        - Rooted Quest Pro with BoltOn (VRCFT mode)
+        - Rooted Quest Pro without BoltOn
+        - Other headset
     validations:
       required: true
 
   - type: textarea
+    id: what
     attributes:
-      label: Steps to Reproduce
-      description: Provide the steps to reproduce the behavior.
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
       placeholder: |
-        1. Go to '...'
-        2. Click on '...'
-        3. See error
-
-  - type: input
-    attributes:
-      label: Expected behavior
-      description: A clear and concise description of what you expected to happen.
-      placeholder: Please describe what you expected to happen.
-
-  - type: input
-    attributes:
-      label: WiVRn Version
-      description: Provide the version or commit hash of WiVRn.
-      placeholder: Version or commit
+        I turned on Face tracking over OSC, restarted the server and joined VRChat, but my avatar's mouth doesn't move.
     validations:
       required: true
 
   - type: input
+    id: version
     attributes:
-      label: Installation method
-      description: Describe how WiVRn and OpenComposite/xrizer were installed
-      placeholder: flatpak --user, flatpak, AUR, Gentoo/Guru, built from sources...
+      label: Version
+      description: Output of `pacman -Q wivrn-server`, or the release tag / commit you built.
+      placeholder: wivrn-server 26.9-2
+
+  - type: input
+    id: distro
+    attributes:
+      label: Linux distribution and GPU
+      placeholder: CachyOS, AMD RX 7800 XT
 
   - type: textarea
+    id: logs
     attributes:
-      label: Server Config
+      label: Server log
       description: |
-        Provide the content of `config.json` for the server.
-        Located in `${XDG_CONFIG_HOME-${HOME}/.config}/wivrn/config.json`
-        or `~/.var/app/io.github.wivrn.wivrn/config/wivrn/config.json` for the flatpak version
-      placeholder: |
-        {
-          "encoders": [
-            {"codec": "h264"}
-          ]
-        }
+        Dashboard → **Troubleshoot** → **Open server logs**, then attach the newest `server_logs_*.txt` (drag the file here).
+      placeholder: Drag the log file here, or paste the lines around the problem.
 
   - type: textarea
+    id: config
     attributes:
-      label: Server Logs
-      description: Provide the `wivrn-server` output.
-      placeholder: |
-        Add the output of the wivrn-server here.
-        If more than a few lines, prefer file attachment.
-
-  - type: dropdown
-    id: gpu
-    attributes:
-      label: What GPU did the bug occur on?
-      options:
-        - NVIDIA
-        - AMD
-        - Intel
-        - Other
-    validations:
-      required: true
+      label: Server config
+      description: Content of `~/.config/wivrn/config.json` (at least the `vrchat-osc` and `qpro-pupils` parts).
+      render: json
 
   - type: textarea
+    id: extra
     attributes:
-      label: Vulkan Info
-      description: Provide the output of `vulkaninfo --summary` command.
-      render: text
-      placeholder: Attach the output as a file here.
-
-  - type: dropdown
-    id: hmd
-    attributes:
-      label: What HMD did the bug occur on?
-      options:
-        - Quest
-        - Quest 2
-        - Quest Pro
-        - Quest 3
-        - Quest 3S
-        - Pico 4
-        - Pico 4 Pro/Enterprise
-        - Pico Neo 3
-        - HTC Vive Focus 3
-        - HTC Vive XR Elite
-        - Lynx R1
-        - Other
-    validations:
-      required: true
-
-  - type: textarea
-    attributes:
-      label: ADB Logs
-      description: Provide the output of `adb logcat` command.
-      render: plain
-      placeholder: Attach the output of adb logcat as a file.
+      label: Anything else?
+      description: Screenshots (e.g. the Pupil tracking page), avatar used, does it also happen with stock WiVRn…

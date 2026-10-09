@@ -1,7 +1,8 @@
-issue_templates:
-  - name: Bug Report
-    about: Create a report to help us improve WiVRn.
-  - name: Feature Request
-    about: Suggest an enhancement or new feature for WiVRn.
-  - name: Other
-    about: Use this template for anything else that doesn't fit into the above categories.
+blank_issues_enabled: false
+contact_links:
+  - name: Setup guide
+    url: https://github.com/Seventh-Void/WiVRn-QPro-OSC#set-up
+    about: Install and setup steps for VRChat, Resonite and pupil tracking.
+  - name: BoltOn guide
+    url: https://guides.mxr.lol/guides/bolton/
+    about: Rooting and BoltOn setup on the headset are not part of this fork.

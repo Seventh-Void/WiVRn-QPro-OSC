@@ -5,7 +5,7 @@
 One app: no VRCFaceTracking, no ALXR module, no Edrakon, nothing else to run on the PC. Start WiVRn, connect the headset and jump into VRChat or Resonite.
 
 > [!IMPORTANT]
-> This is an unofficial fork. Please report problems with the additions below **here**, not to the WiVRn project.
+> This is an unofficial fork. Please [**report problems here**](https://github.com/Seventh-Void/WiVRn-QPro-OSC/issues/new/choose), not to the WiVRn project.
 > Everything else is stock WiVRn 26.9, and its documentation (further down this page) applies.
 
 ## What this fork adds
