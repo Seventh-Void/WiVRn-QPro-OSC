@@ -71,6 +71,17 @@ There is one release for everyone. Camera pupil tracking is off until you turn i
 
 ### Stock Quest Pro (no root)
 
+```mermaid
+flowchart LR
+    Headset["Quest Pro (stock)<br/>WiVRn app: face + eye tracking"]
+    Server["PC: wivrn-server<br/>(pupil tracking off, no ADB)"]
+    VRChat["VRChat<br/>OSC, port 9000"]
+    Resonite["Resonite<br/>Steam Link OSC, port 9015"]
+    Headset -- "WiVRn stream" --> Server
+    Server --> VRChat
+    Server --> Resonite
+```
+
 1. On the headset: **Settings → Movement tracking** → turn on **Eye tracking** and **Face tracking**.
 2. In the WiVRn headset app: **Settings** → turn on **Face tracking** and **Eye tracking**, and allow the permissions it asks for.
 3. On the PC, follow [VRChat and Resonite](#vrchat-and-resonite) below. Leave **Camera pupil tracking** off and skip the ADB steps.
