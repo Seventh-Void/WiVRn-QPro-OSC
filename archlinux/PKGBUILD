@@ -7,7 +7,7 @@ pkgname=(
 	wivrn-dashboard
 )
 pkgver=26.9
-pkgrel=1
+pkgrel=2
 pkgdesc="A wireless Monado-based OpenXR runtime for standalone headsets (WiVRn-QPro-OSC fork: face tracking to VRChat and Resonite over OSC)."
 arch=(x86_64)
 url="https://github.com/Seventh-Void/WiVRn-QPro-OSC"
@@ -80,7 +80,7 @@ makedepends=(
 	"qt6-tools"
 )
 
-_tag=v26.9-qpro.1
+_tag=v26.9-qpro.2
 source=("WiVRn-QPro-OSC::git+https://github.com/Seventh-Void/WiVRn-QPro-OSC.git#tag=$_tag")
 sha256sums=('SKIP')
 

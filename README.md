@@ -67,7 +67,7 @@ A stock (unrooted) Quest Pro also works for face and eye tracking through WiVRn,
 
 ### Arch Linux (and CachyOS, EndeavourOS, Manjaro…)
 
-Builds `wivrn-server` and `wivrn-dashboard` 26.9 from this fork. They replace the AUR packages of the same name and version:
+Builds `wivrn-server` and `wivrn-dashboard` 26.9 from this fork. They replace the AUR packages of the same name (same WiVRn version, newer package release, so AUR updates of 26.9 don't overwrite them):
 
 ```sh
 git clone https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
@@ -75,14 +75,14 @@ cd WiVRn-QPro-OSC/archlinux
 makepkg -si
 ```
 
-To go back to stock WiVRn, reinstall the AUR packages (`wivrn-server`, `wivrn-dashboard`).
+To go back to stock WiVRn, install the AUR packages again (for example `yay -S wivrn-server wivrn-dashboard`; pacman will report a downgrade).
 
 ### Other distributions (build from source)
 
 Install the build dependencies listed in [docs/building.md](docs/building.md), plus OpenCV (core, imgproc, imgcodecs), and `adb` (android-tools) for camera pupil tracking. Then:
 
 ```sh
-git clone -b v26.9-qpro.1 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
+git clone -b v26.9-qpro.2 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git
 cd WiVRn-QPro-OSC
 cmake -B build -G Ninja -DGIT_TAG=v26.9 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
       -DWIVRN_BUILD_SERVER=ON -DWIVRN_BUILD_DASHBOARD=ON -DWIVRN_BUILD_CLIENT=OFF -DWIVRN_BUILD_WIVRNCTL=ON \
