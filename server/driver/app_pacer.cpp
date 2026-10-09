@@ -25,13 +25,34 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <cstring>
+#include <fcntl.h>
 #include <ranges>
+#include <sys/mman.h>
+#include <unistd.h>
 
 // Default value is half the compositor margin
 DEBUG_GET_ONCE_FLOAT_OPTION(min_margin_ms, "U_PACING_APP_MIN_MARGIN_MS", 1.5f)
 
 namespace wivrn
 {
+
+// Layout of /dev/shm/wivrn-frametime (native endian), for external readers:
+//   u64 count, u32 period_us, u32 reserved, char app_name[64] (NUL-terminated),
+//   then 256 x {u32 cpu_us, u32 gpu_us}.
+// The writer fills frames[count % 256], then increments count.
+struct frametime_shm
+{
+	std::atomic<uint64_t> count;
+	uint32_t period_us;
+	uint32_t reserved;
+	char app_name[64];
+	struct
+	{
+		uint32_t cpu_us;
+		uint32_t gpu_us;
+	} frames[256];
+};
 
 class app_pacer : public u_pacing_app
 {
@@ -215,9 +236,14 @@ void app_pacer::mark_gpu_done(int64_t frame_id, int64_t when_ns)
 	if (frame.frame_id != frame_id or not(frame.wake_up and frame.delivered))
 		return;
 
+	int64_t cpu = frame.delivered - frame.wake_up;
+	int64_t gpu = when_ns - frame.delivered;
+	if (parent.exported.load(std::memory_order_relaxed) == this)
+		parent.export_frame(cpu, gpu, period);
+
 	std::lock_guard lock(mutex);
-	cpu_time = lerp0(cpu_time, std::min(3 * period, frame.delivered - frame.wake_up), 0.1);
-	gpu_time = lerp0(gpu_time, std::min(3 * period, when_ns - frame.delivered), 0.1);
+	cpu_time = lerp0(cpu_time, std::min(3 * period, cpu), 0.1);
+	gpu_time = lerp0(gpu_time, std::min(3 * period, gpu), 0.1);
 }
 
 pacing_app_factory::pacing_app_factory() :
@@ -226,12 +252,44 @@ pacing_app_factory::pacing_app_factory() :
                 .destroy = method_pointer<&pacing_app_factory::destroy>,
         }
 {
+	int fd = shm_open("/wivrn-frametime", O_CREAT | O_RDWR, 0600);
+	if (fd < 0)
+		return;
+	if (ftruncate(fd, sizeof(frametime_shm)) == 0)
+	{
+		void * p = mmap(nullptr, sizeof(frametime_shm), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+		if (p != MAP_FAILED)
+			shm = static_cast<frametime_shm *>(p);
+	}
+	close(fd);
+}
+
+void pacing_app_factory::export_frame(int64_t cpu_ns, int64_t gpu_ns, int64_t period_ns)
+{
+	if (not shm)
+		return;
+	auto n = shm->count.load(std::memory_order_relaxed);
+	shm->frames[n % std::size(shm->frames)] = {
+	        .cpu_us = uint32_t(std::clamp<int64_t>(cpu_ns / 1000, 0, UINT32_MAX)),
+	        .gpu_us = uint32_t(std::clamp<int64_t>(gpu_ns / 1000, 0, UINT32_MAX)),
+	};
+	shm->period_us = uint32_t(period_ns / 1000);
+	shm->count.store(n + 1, std::memory_order_release);
+}
+
+void pacing_app_factory::set_exported(u_pacing_app * pacer, const char * app_name)
+{
+	if (exported.exchange(pacer) != pacer and shm)
+		strlcpy(shm->app_name, pacer ? app_name : "", sizeof(shm->app_name));
 }
 
 void pacing_app_factory::remove_app(app_pacer * app)
 {
 	std::lock_guard lock(mutex);
 	std::erase(app_pacers, app);
+	u_pacing_app * expected = app;
+	if (exported.compare_exchange_strong(expected, nullptr) and shm)
+		shm->app_name[0] = 0;
 }
 
 xrt_result_t pacing_app_factory::create(struct u_pacing_app ** out_upa)

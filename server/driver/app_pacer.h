@@ -20,6 +20,7 @@
 
 #include "util/u_pacing.h"
 
+#include <atomic>
 #include <mutex>
 #include <vector>
 
@@ -28,6 +29,7 @@ namespace wivrn
 
 class wivrn_session;
 class app_pacer;
+struct frametime_shm;
 
 class pacing_app_factory : public u_pacing_app_factory
 {
@@ -35,6 +37,9 @@ class pacing_app_factory : public u_pacing_app_factory
 	std::mutex mutex;
 	std::vector<app_pacer *> app_pacers;
 	void remove_app(app_pacer *);
+
+	frametime_shm * shm = nullptr;
+	void export_frame(int64_t cpu_ns, int64_t gpu_ns, int64_t period_ns);
 
 public:
 	using base_t = u_pacing_app_factory;
@@ -44,6 +49,13 @@ public:
 	void destroy();
 
 	int64_t get_frame_time();
+
+	// Pacer of the focused (non-overlay) app, whose per-frame timings are
+	// published in /dev/shm/wivrn-frametime for overlays such as WayVR.
+	void set_exported(u_pacing_app * pacer, const char * app_name);
+
+private:
+	std::atomic<u_pacing_app *> exported = nullptr;
 };
 
 } // namespace wivrn

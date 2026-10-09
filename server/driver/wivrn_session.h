@@ -246,6 +246,7 @@ private:
 
 	void update_client_states(bool visible, bool focused);
 	void poll_session_loss();
+	void update_frametime_export();
 
 	// checks if a headset is usable with this session
 	std::pair<bool, std::optional<std::string>> validate_headset_info(const from_headset::headset_info_packet & info);

@@ -56,6 +56,7 @@
 #include <chrono>
 #include <magic_enum.hpp>
 #include <multi/comp_multi_interface.h>
+#include <multi/comp_multi_private.h>
 #include <stdexcept>
 #include <string.h>
 #include <utility>
@@ -1139,6 +1140,7 @@ void wivrn_session::run_worker(std::stop_token stop)
 					control.resolve(compositor.get_frame_duration(), tracking_latency);
 			}
 			poll_session_loss();
+			update_frametime_export();
 		}
 		catch (const std::exception & e)
 		{
@@ -1382,6 +1384,24 @@ void wivrn_session::update_client_states(bool visible, bool focused)
 		        current ? "true" : "false");
 		xrt_syscomp_set_state(system_compositor, t.ics.xc, visible and current, focused and current, os_monotonic_get_ns());
 	}
+}
+
+void wivrn_session::update_frametime_export()
+{
+	assert(mnd_ipc_server);
+	u_pacing_app * active = nullptr;
+	const char * name = "";
+	scoped_lock lock(mnd_ipc_server->global_state.lock);
+	for (auto & t: mnd_ipc_server->threads)
+	{
+		if (t.ics.xc and t.ics.server_thread_index >= 0 and
+		    t.ics.server_thread_index == mnd_ipc_server->global_state.active_client_index)
+		{
+			active = multi_compositor(t.ics.xc)->upa;
+			name = const_cast<const char *>(t.ics.client_state.info.application_name);
+		}
+	}
+	app_pacers.set_exported(active, name);
 }
 
 void wivrn_session::poll_session_loss()
