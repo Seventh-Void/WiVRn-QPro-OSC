@@ -1,0 +1,315 @@
+--- a/dash-frontend/src/tab/settings/mod.rs
++++ b/dash-frontend/src/tab/settings/mod.rs
+@@ -36,6 +36,7 @@
+ mod tab_autostart_apps;
+ mod tab_controls;
+ mod tab_features;
++mod tab_fpsvr;
+ mod tab_look_and_feel;
+ mod tab_misc;
+ mod tab_skybox;
+@@ -47,6 +48,7 @@
+ 	AutostartApps,
+ 	Controls,
+ 	Features,
++	FpsStats,
+ 	LookAndFeel,
+ 	Misc,
+ 	Skybox,
+@@ -60,6 +62,7 @@
+ 			"autostart_apps" => Some(TabNameEnum::AutostartApps),
+ 			"controls" => Some(TabNameEnum::Controls),
+ 			"features" => Some(TabNameEnum::Features),
++			"fpsvr" => Some(TabNameEnum::FpsStats),
+ 			"look_and_feel" => Some(TabNameEnum::LookAndFeel),
+ 			"misc" => Some(TabNameEnum::Misc),
+ 			"skybox" => Some(TabNameEnum::Skybox),
+@@ -731,6 +734,9 @@
+ 			TabNameEnum::Troubleshooting => {
+ 				self.current_tab = Some(Box::new(tab_troubleshooting::State::mount(settings_mount_params)?));
+ 			}
++			TabNameEnum::FpsStats => {
++				self.current_tab = Some(Box::new(tab_fpsvr::State::mount(settings_mount_params)?));
++			}
+ 			TabNameEnum::Skybox => {
+ 				self.current_tab = Some(Box::new(tab_skybox::State::mount(settings_mount_params)?));
+ 			}
+--- a/dash-frontend/src/tab/settings/tab_fpsvr.rs
++++ b/dash-frontend/src/tab/settings/tab_fpsvr.rs
+@@ -0,0 +1,255 @@
++//! Settings of the fpsVR-style stats on the watch (contrib/wayvr-fpsvr in WiVRn-QPro-OSC).
++//! Everything is written straight to files that the `wayvr-stats` script re-reads every 2 s,
++//! so changes apply live: ~/.config/wayvr-stats/settings.json, plus the master switch
++//! "wayvr-stats" in ~/.config/wivrn/config.json (also set by the WiVRn dashboard).
++
++use std::{path::PathBuf, rc::Rc};
++
++use serde_json::{Map, Value};
++use wgui::{
++	components::{
++		button::{ButtonClickEvent, ComponentButton},
++		checkbox::ComponentCheckbox,
++	},
++	i18n::Translation,
++	layout::WidgetID,
++	log::LogErr,
++	parser::{Fetchable, TemplateParams},
++	widget::label::WidgetLabel,
++	windowing::context_menu,
++};
++use wlx_common::{config::GeneralConfig, dash_interface::ConfigChangeKind};
++
++use crate::tab::settings::{
++	SettingsMountParams, SettingsTab, Task, horiz_cell,
++	macros::{MacroParams, options_category},
++};
++
++/// (key in "show", label) of each element that can be turned off in Full mode
++const ELEMENTS: [(&str, &str); 12] = [
++	("title", "Game name"),
++	("fps", "FPS"),
++	("avg", "Avg FPS"),
++	("gpu_ms", "GPU frame time"),
++	("cpu_ms", "CPU frame time"),
++	("gpu", "GPU temperature and load"),
++	("vram", "VRAM"),
++	("cpu", "CPU temperature and load"),
++	("ram", "RAM"),
++	("session", "Game time (under the clock)"),
++	("world", "VRChat world time (VRCX)"),
++	("button", "Hide / Show stats button"),
++];
++
++const MODES: [(&str, &str); 2] = [("full", "Full"), ("minimal", "Minimal (FPS and Avg only)")];
++
++fn config_dir() -> PathBuf {
++	std::env::var_os("XDG_CONFIG_HOME")
++		.map(PathBuf::from)
++		.unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(".config"))
++}
++
++fn settings_path() -> PathBuf {
++	config_dir().join("wayvr-stats").join("settings.json")
++}
++
++fn wivrn_config_path() -> PathBuf {
++	config_dir().join("wivrn").join("config.json")
++}
++
++fn read_object(path: &PathBuf) -> Map<String, Value> {
++	std::fs::read_to_string(path)
++		.ok()
++		.and_then(|s| serde_json::from_str::<Value>(&s).ok())
++		.and_then(|v| match v {
++			Value::Object(map) => Some(map),
++			_ => None,
++		})
++		.unwrap_or_default()
++}
++
++/// Read-modify-write a JSON object file, keeping the other keys. Written via a temp file + rename,
++/// so `wayvr-stats` (or WiVRn) never reads a half-written file.
++fn update_file(path: PathBuf, change: impl FnOnce(&mut Map<String, Value>)) {
++	let mut map = read_object(&path);
++	change(&mut map);
++	let result = (|| -> anyhow::Result<()> {
++		if let Some(dir) = path.parent() {
++			std::fs::create_dir_all(dir)?;
++		}
++		let tmp = path.with_extension("json.tmp");
++		std::fs::write(&tmp, serde_json::to_string_pretty(&Value::Object(map))? + "\n")?;
++		std::fs::rename(&tmp, &path)?;
++		Ok(())
++	})();
++	let _ = result.log_err(&format!("Could not write {}", path.display()));
++}
++
++fn shown(settings: &Map<String, Value>, key: &str) -> bool {
++	settings
++		.get("show")
++		.and_then(|s| s.get(key))
++		.and_then(Value::as_bool)
++		.unwrap_or(true)
++}
++
++fn checkbox(
++	mp: &mut MacroParams,
++	parent: WidgetID,
++	text: &str,
++	tooltip: Option<&str>,
++	checked: bool,
++	on_toggle: impl Fn(bool) + 'static,
++) -> anyhow::Result<()> {
++	let id = mp.idx.to_string();
++	mp.idx += 1;
++
++	let mut params = TemplateParams::new();
++	params.insert("id", &id);
++	params.insert("text", text);
++	params.insert("checked", if checked { "1" } else { "0" });
++	if let Some(tooltip) = tooltip {
++		params.insert("tooltip", tooltip);
++	}
++
++	let id_cell = horiz_cell(mp.layout, parent)?;
++	mp.parser_state
++		.instantiate_template(mp.doc_params, "CheckBoxSetting", mp.layout, id_cell, params)?;
++
++	let checkbox = mp.parser_state.fetch_component_as::<ComponentCheckbox>(&id)?;
++	checkbox.on_toggle(Box::new(move |_common, e| {
++		on_toggle(e.checked);
++		Ok(())
++	}));
++	Ok(())
++}
++
++pub struct State {}
++
++impl SettingsTab for State {
++	fn context_menu_custom(
++		&mut self,
++		action: Rc<str>,
++		_config: &mut GeneralConfig,
++		_change_kind: &mut Option<ConfigChangeKind>,
++		layout: &mut wgui::layout::Layout,
++		state: &mut wgui::parser::ParserState,
++	) -> anyhow::Result<()> {
++		// ";fpsvr_mode;<dropdown id>;<mode>"
++		let mut parts = action.splitn(4, ';').skip(1);
++		if let (Some("fpsvr_mode"), Some(id), Some(mode)) = (parts.next(), parts.next(), parts.next())
++			&& let Some((_, title)) = MODES.iter().find(|(m, _)| *m == mode)
++		{
++			let mut common = layout.common();
++			let mut label = state.fetch_widget_as::<WidgetLabel>(common.state, &format!("{id}_value"))?;
++			label.set_text(&mut common, Translation::from_raw_text(title));
++			let mode = mode.to_string();
++			update_file(settings_path(), move |s| {
++				s.insert("mode".into(), Value::String(mode));
++			});
++		}
++		Ok(())
++	}
++}
++
++impl State {
++	pub fn mount(par: SettingsMountParams) -> anyhow::Result<State> {
++		let mut settings = read_object(&settings_path());
++		// Graphs default to off for the script (stock WayVR can't show them for long);
++		// this tab only exists in the patched WayVR, so turn them on the first time it opens.
++		if !settings.contains_key("graphs") {
++			settings.insert("graphs".into(), Value::Bool(true));
++			update_file(settings_path(), |s| {
++				s.insert("graphs".into(), Value::Bool(true));
++			});
++		}
++		let enabled = read_object(&wivrn_config_path()).get("wayvr-stats").and_then(Value::as_bool) != Some(false);
++
++		let c = options_category(par.mp, par.id_parent, "APP_SETTINGS.FPS_STATS", "dashboard/usage.svg")?;
++
++		checkbox(
++			par.mp,
++			c,
++			"Enabled",
++			Some("Same switch as in the WiVRn dashboard Settings"),
++			enabled,
++			|on| {
++				update_file(wivrn_config_path(), move |s| {
++					if on {
++						s.remove("wayvr-stats");
++					} else {
++						s.insert("wayvr-stats".into(), Value::Bool(false));
++					}
++				})
++			},
++		)?;
++
++		// Mode dropdown
++		{
++			let mp = &mut *par.mp;
++			let id = mp.idx.to_string();
++			mp.idx += 1;
++			let mut params = TemplateParams::new();
++			params.insert("id", &id);
++			params.insert("text", "Mode");
++			let id_cell = horiz_cell(mp.layout, c)?;
++			mp.parser_state
++				.instantiate_template(mp.doc_params, "DropdownButton", mp.layout, id_cell, params)?;
++
++			let mode = settings.get("mode").and_then(Value::as_str).unwrap_or("full");
++			let title = MODES.iter().find(|(m, _)| *m == mode).unwrap_or(&MODES[0]).1;
++			{
++				let mut label = mp
++					.parser_state
++					.fetch_widget_as::<WidgetLabel>(&mp.layout.state, &format!("{id}_value"))?;
++				label.set_text_simple(&mut mp.layout.state.globals.get(), Translation::from_raw_text(title));
++			}
++			let btn = mp.parser_state.fetch_component_as::<ComponentButton>(&id)?;
++			btn.on_click(Rc::new({
++				let tasks = mp.tasks.clone();
++				move |_common, e: ButtonClickEvent| {
++					tasks.push(Task::OpenContextMenu(
++						e.mouse_pos_absolute.unwrap_or_default(),
++						MODES
++							.iter()
++							.map(|(mode, title)| context_menu::Cell {
++								action_name: Some(format!(";fpsvr_mode;{id};{mode}").into()),
++								title: Translation::from_raw_text(title),
++								tooltip: None,
++								attribs: vec![],
++							})
++							.collect(),
++					));
++					Ok(())
++				}
++			}));
++		}
++
++		checkbox(
++			par.mp,
++			c,
++			"Frame time graphs",
++			Some("Needs this patched WayVR"),
++			settings.get("graphs").and_then(Value::as_bool).unwrap_or(true),
++			|on| {
++				update_file(settings_path(), move |s| {
++					s.insert("graphs".into(), Value::Bool(on));
++				})
++			},
++		)?;
++
++		let c2 = options_category(par.mp, par.id_parent, "APP_SETTINGS.FPS_STATS_SHOW", "dashboard/eye.svg")?;
++		for (key, text) in ELEMENTS {
++			checkbox(par.mp, c2, text, None, shown(&settings, key), move |on| {
++				update_file(settings_path(), move |s| {
++					let show = s.entry("show").or_insert_with(|| Value::Object(Map::new()));
++					if let Value::Object(show) = show {
++						show.insert(key.into(), Value::Bool(on));
++					}
++				})
++			})?;
++		}
++
++		Ok(State {})
++	}
++}
+--- a/dash-frontend/assets/gui/tab/settings.xml
++++ b/dash-frontend/assets/gui/tab/settings.xml
+@@ -69,6 +69,7 @@
+         <Tab macro="tab_style" name="space_drag" translation="APP_SETTINGS.SPACE_DRAG" sprite_src_builtin="dashboard/drag.svg" />
+         <Tab macro="tab_style" name="misc" translation="APP_SETTINGS.MISC" sprite_src_builtin="dashboard/blocks.svg" />
+         <Tab macro="tab_style" name="autostart_apps" translation="APP_SETTINGS.AUTOSTART_APPS" sprite_src_builtin="dashboard/apps.svg" />
++        <Tab macro="tab_style" name="fpsvr" translation="APP_SETTINGS.FPS_STATS" sprite_src_builtin="dashboard/usage.svg" />
+         <Tab macro="tab_style" name="troubleshooting" translation="APP_SETTINGS.TROUBLESHOOTING" sprite_src_builtin="dashboard/cpu.svg" />
+       </Tabs>
+       <div flex_wrap="wrap" justify_content="stretch" gap="4" id="settings_root" width="100%">
+--- a/dash-frontend/assets/lang/en.json
++++ b/dash-frontend/assets/lang/en.json
+@@ -224,6 +224,8 @@
+ 		"SPACE_GRAVITY_FLOOR_HEIGHT_HELP": "The Y position where the floor is. Gravity stops when you reach this height.",
+ 		"SPACE_ROTATE_UNLOCKED": "Allow space rotate on all axes",
+ 		"TROUBLESHOOTING": "Troubleshooting",
++		"FPS_STATS": "FPS stats",
++		"FPS_STATS_SHOW": "FPS stats: show",
+ 		"UI_GRADIENT_INTENSITY": "UI Gradient intensity",
+ 		"UPRIGHT_SCREEN_FIX": "Upright screen fix",
+ 		"UPRIGHT_SCREEN_FIX_HELP": "Fixes upright screens on some desktops",

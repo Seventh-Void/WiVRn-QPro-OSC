@@ -1,0 +1,61 @@
+<!-- Square Hide/Show stats button for an existing WayVR watch (fpsVR-style stats add-on).
+     Put this file next to your watch.xml (~/.config/wayvr/theme/gui/) and add
+         <include src="fpsvr-button.xml" />
+     in your button row, e.g. right after the dashboard button. The icons go in ~/.config/wayvr/theme/fpsvr/.
+     Hiding removes the stats panel, so your watch gets shorter while hidden; give your outermost
+     <div> a min_height (its height with the stats shown) to keep its size. -->
+<layout>
+  <theme>
+    <!-- Colors of this add-on only (white). Change them to match your watch. -->
+    <var key="fv_color_bg" value="#101010" />
+    <var key="fv_color_text" value="#FFFFFF" />
+    <var key="fv_color_accent" value="#FFFFFF" />
+    <var key="fv_color_accent_translucent" value="#FFFFFF99" />
+    <var key="fv_color_accent_40" value="#FFFFFF66" />
+    <var key="fv_color_accent_10" value="#FFFFFF1A" />
+    <var key="fv_color_faded" value="#C8C8C8" />
+  </theme>
+
+  <macro name="fv_rect"
+         padding="8" color="~fv_color_bg"
+         border="2" border_color="~fv_color_accent" round="8" />
+
+  <macro name="fv_button"
+         padding="8"
+         border_color="~fv_color_accent_translucent"
+         border="2"
+         round="8"
+         color="~fv_color_accent_40"
+         color2="~fv_color_accent_10"
+         gradient="vertical"
+         align_items="center"
+         justify_content="center" />
+
+  <elements>
+    <div gap="4">
+      <!-- Hide / show the stats; the flag file pauses wayvr-stats while hidden -->
+      <div id="fv_hide_btn">
+        <Button macro="fv_button"
+                _press="::ElementSetDisplay fv_panel none"
+                _press2="::ElementSetDisplay fv_hide_btn none"
+                _press3="::ElementSetDisplay fv_show_btn flex"
+                _press4="::ShellExec touch &quot;$XDG_RUNTIME_DIR/wayvr-stats.hidden&quot;"
+                tooltip_str="Hide stats"
+                tooltip_side="left">
+          <sprite color="~fv_color_text" width="40" height="40" src="fpsvr/stats.svg" />
+        </Button>
+      </div>
+      <div id="fv_show_btn" display="none">
+        <Button macro="fv_button"
+                _press="::ElementSetDisplay fv_panel flex"
+                _press2="::ElementSetDisplay fv_show_btn none"
+                _press3="::ElementSetDisplay fv_hide_btn flex"
+                _press4="::ShellExec rm -f &quot;$XDG_RUNTIME_DIR/wayvr-stats.hidden&quot;"
+                tooltip_str="Show stats"
+                tooltip_side="left">
+          <sprite color="~fv_color_text" width="40" height="40" src="fpsvr/stats-off.svg" />
+        </Button>
+      </div>
+    </div>
+  </elements>
+</layout>

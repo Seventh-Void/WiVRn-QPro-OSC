@@ -126,6 +126,15 @@ Kirigami.ScrollablePage {
                     toolTipText: i18n("Send the headset's face and eye tracking straight to VRChat (OSC port 9000) and, while Resonite runs, to Resonite (Steam Link OSC port 9015). No VRCFaceTracking or Edrakon needed.\nResonite needs the RemoveThatKinkFromSteamLinkCS mod.\nCamera pupil sizes (Pupil tracking page) go to VRChat.\nTakes effect when the server restarts.")
                 }
             }
+            RowLayout {
+                Controls.CheckBox {
+                    id: wayvr_stats
+                    text: i18n("fpsVR-style stats on the WayVR watch")
+                }
+                Kirigami.ContextualHelpButton {
+                    toolTipText: i18n("Frame time graphs, FPS, temperatures and memory on the WayVR wrist watch, plus game and VRChat world time under the clock.\nNeeds the wayvr-stats script from contrib/wayvr-fpsvr (or this fork's release).\nWhen off, the stats disappear from the watch and the script does nothing.\nTakes effect a few seconds after you press OK, no restart needed.")
+                }
+            }
             Controls.CheckBox {
                 id: debug_gui
                 text: i18n("Enable debug window")
@@ -351,6 +360,7 @@ Kirigami.ScrollablePage {
         Settings.lhStickDeadzone = lh_stick_deadzone.value;
         Settings.hidForwarding = hid_forwarding.checked;
         Settings.vrchatOsc = vrchat_osc.checked;
+        Settings.wayvrStats = wayvr_stats.checked;
 
         DashboardSettings.auto_connect_usb = auto_connect_usb.checked;
     }
@@ -364,6 +374,7 @@ Kirigami.ScrollablePage {
         lh_stick_deadzone.value = Settings.lhStickDeadzone;
         hid_forwarding.checked = Settings.hidForwarding;
         vrchat_osc.checked = Settings.vrchatOsc;
+        wayvr_stats.checked = Settings.wayvrStats;
 
         auto_connect_usb.checked = DashboardSettings.auto_connect_usb;
 

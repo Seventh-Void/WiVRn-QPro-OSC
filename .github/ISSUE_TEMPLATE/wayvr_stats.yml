@@ -21,9 +21,11 @@ body:
         - Stats panel stays empty / shows only "--"
         - Graphs don't show or don't move
         - FPS / frame times / colours look wrong
+        - GPU temperature / load / VRAM wrong or "--" (NVIDIA support is untested)
+        - Settings → FPS stats tab, Full / Minimal mode, show/hide switches
         - Hide / Show stats button
         - Game time or VRChat world time (VRCX) under the clock
-        - Add-on files (fpsvr-stats.xml / fpsvr-clock.xml) in my own watch
+        - Add-on files (fpsvr-stats.xml / fpsvr-button.xml / fpsvr-clock.xml) in my own watch
         - Installing (script, systemd units, patched WayVR)
         - Something else
     validations:
@@ -71,22 +73,22 @@ body:
     id: versions
     attributes:
       label: Versions
-      description: Output of `pacman -Q wayvr wivrn-server` (graphs need wayvr 26.8.0-1.2 from this fork).
-      placeholder: wayvr 26.8.0-1.2, wivrn-server 26.9-3
+      description: Output of `wayvr --version` and `wivrn-server --version`, and how you installed them (release package, makepkg, built from source).
+      placeholder: wayvr 26.8.0 (release package 26.8.0-1.3), WiVRn version 26.9 (built from source on Fedora 43)
 
   - type: textarea
     id: service
     attributes:
-      label: Service settings
-      description: Output of `systemctl --user cat wayvr-stats.service` (shows WAYVR_STATS_GRAPHS / COLOR / TEXT).
-      render: ini
+      label: Settings
+      description: Output of `cat ~/.config/wayvr-stats/settings.json; systemctl --user cat wayvr-stats.service`
+      render: text
 
   - type: input
     id: distro
     attributes:
-      label: Linux distribution, CPU and GPU
-      description: GPU stats need an AMD GPU (amdgpu); CPU temperature needs k10temp or coretemp.
-      placeholder: CachyOS, Ryzen 7 7800X3D, AMD RX 7800 XT
+      label: Linux distribution, CPU, GPU and GPU driver
+      description: GPU stats are read from amdgpu (AMD) or NVML (NVIDIA proprietary driver, untested); CPU temperature needs k10temp or coretemp. For NVIDIA, include the output of `nvidia-smi`.
+      placeholder: Fedora 43, Ryzen 7 7800X3D, NVIDIA RTX 4070 (driver 580.95)
 
   - type: textarea
     id: extra

@@ -1,14 +1,18 @@
 # fpsVR-style stats on the WayVR watch
 
-A frame timing panel for [WayVR](https://github.com/wlx-team/wayvr)'s wrist watch, like fpsVR on SteamVR: per-frame CPU and GPU frame time graphs for the VR game you're in, FPS, temperatures, load and memory, plus how long you've been in the game (and, in VRChat, in the current world) under the clock.
+A frame timing panel for [WayVR](https://github.com/wlx-team/wayvr)'s wrist watch, like fpsVR on SteamVR: per-frame CPU and GPU frame time graphs for the VR game you're in, FPS, temperatures, load and memory, plus how long you've been in the game (and, in VRChat, in the current world) under the clock. Everything can be changed live in WayVR's **Settings → FPS stats**.
 
 <p align="center">
   <img src="watch.png" alt="WayVR watch with the stats panel" width="380">
   <img src="watch-hidden.png" alt="The same watch with the stats hidden" width="380">
 </p>
-<p align="center"><img src="fpsvr-graphs.gif" alt="Frame time graphs going from good to bad and back while VRChat loads a world" width="380"></p>
+<p align="center">
+  <img src="fpsvr-graphs.gif" alt="Frame time graphs going from good to bad and back while VRChat loads a world" width="380">
+  <img src="watch-minimal.png" alt="The watch in Minimal mode: FPS and Avg FPS only" width="380">
+</p>
+<p align="center"><img src="settings-tab.png" alt="The FPS stats tab in WayVR's Settings" width="600"></p>
 
-*All three are from a real VRChat session on a Quest Pro with this fork, rendered with WayVR's `uidev` previewer (the dark background stands in for the game behind the watch; battery levels are left empty by the previewer). Left: the stats panel. Right: the same watch with the stats hidden. The GIF replays 24 s of recorded VRChat frames, world loading included, through the panel's own graph and colour code: FPS and frame times turn orange and red while the frames are late, and back to white once it recovers. The temperature, load and memory lines in the GIF are from the moment of the screenshot.*
+*The watch images are from a real VRChat session on a Quest Pro with this fork, rendered with WayVR's `uidev` previewer (the dark background stands in for the game behind the watch; battery levels are left empty by the previewer). Top: the stats panel, and the same watch with the stats hidden. The GIF replays 24 s of recorded VRChat frames, world loading included, through the panel's own graph and colour code: FPS and frame times turn orange and red while the frames are late, and back to white once it recovers (the temperature, load and memory lines in it are from the moment of the screenshot). Next to it: Minimal mode. Bottom: the FPS stats tab of the patched WayVR's Settings.*
 
 ## What it shows
 
@@ -16,16 +20,23 @@ A frame timing panel for [WayVR](https://github.com/wlx-team/wayvr)'s wrist watc
 |---|---|
 | Game name | WiVRn: the focused (non-overlay) OpenXR app. |
 | Game time (under the clock) | Time since the panel first saw the game in focus (restarting the panel or WayVR restarts it). Changes to `No VR game` 5 s after the game stops delivering frames. |
-| World time (under the clock) | VRChat only, with [VRCX](https://github.com/vrcx-team/VRCX) installed (see [VRCX](#vrcx-optional)): the current world and how long you've been in it. Blank otherwise. |
+| World time (under the clock) | VRChat only, with [VRCX](https://github.com/vrcx-team/VRCX) running (see [VRCX](#vrcx-optional)): the current world and how long you've been in it. Blank otherwise. |
 | FPS | Frames the game delivered in the last second. Shows `--` until a full second has passed. |
 | Avg | Frames delivered since the panel first saw the game in focus, divided by the time since then. |
-| GPU / CPU frame time and graphs | WiVRn, every frame of the focused game. CPU = app wake-up to `xrEndFrame`, GPU = `xrEndFrame` to its GPU work finishing. Graphs show the last 150 frames as bars; the dashed line is the frame budget for the headset's refresh rate. Frame time labels are the average over the last second. |
-| GPU temperature and load | `amdgpu`: junction (hotspot) temperature and `gpu_busy_percent`. |
-| VRAM | `amdgpu`: `mem_info_vram_used` / `mem_info_vram_total`. |
-| CPU temperature and load | `k10temp` (Tctl) or `coretemp` (package) temperature; load from `/proc/stat`. |
+| GPU / CPU frame time and graphs | WiVRn, every frame of the focused game, any GPU vendor. CPU = app wake-up to `xrEndFrame`, GPU = `xrEndFrame` to its GPU work finishing. Graphs show the last 150 frames as bars; the dashed line is the frame budget for the headset's refresh rate. Frame time labels are the average over the last second. |
+| GPU temperature and load, VRAM | See [GPU support](#gpu-support). |
+| CPU temperature and load | `k10temp` (AMD, Tctl) or `coretemp` (Intel, package) temperature; load from `/proc/stat`. |
 | RAM | `/proc/meminfo`: total minus available. |
 
-Nothing is estimated. Anything this machine can't read stays `--` (GPU stats need an AMD GPU; the CPU temperature is left out without `k10temp` or `coretemp`). The overlay itself (WayVR) is never counted: WiVRn only exports the focused game.
+Nothing is estimated. Anything this machine can't read stays `--`. The overlay itself (WayVR) is never counted: WiVRn only exports the focused game.
+
+### GPU support
+
+| GPU | Temperature, load, VRAM | Status |
+|---|---|---|
+| AMD (`amdgpu`) | sysfs: junction (hotspot) temperature, `gpu_busy_percent`, `mem_info_vram_*`. With several AMD GPUs (for example a Ryzen iGPU next to a Radeon card), the one with the most VRAM. | Tested (RX 9070 XT). |
+| NVIDIA (proprietary driver) | NVML (`libnvidia-ml.so.1`, installed with the driver): GPU temperature, utilization, memory used/total, first GPU. | **Untested**: written without NVIDIA hardware. If it shows `--` or wrong values, please [report it](https://github.com/Seventh-Void/WiVRn-QPro-OSC/issues/new?template=wayvr_stats.yml) with your GPU and driver version. |
+| Intel, NVIDIA with nouveau, anything else | not read | GPU line shows `--`; frame times, FPS and graphs still work. |
 
 ### Colours
 
@@ -39,7 +50,7 @@ The target is the headset's refresh rate (90 FPS at 90 Hz; frame budget 11.1 ms)
 
 ### Hide and show
 
-**Hide stats** (top left of the panel) hides the whole panel and leaves a **Show stats** button in its place. The watch keeps its size, so nothing else on it moves. While hidden, `wayvr-stats` stops reading frame times and sensors and sends nothing; only the game and world time under the clock keep counting. A new WayVR always starts with the stats shown.
+The square stats button in the clock box (next to the edit button) hides the panel (its icon is then crossed out) and shows it again. The watch keeps its size: the buttons below move up and the space at the bottom stays empty. While hidden, `wayvr-stats` stops reading frame times and sensors and sends nothing; only the game and world time under the clock keep counting. A new WayVR always starts with the stats shown.
 
 ### VRCX (optional)
 
@@ -49,53 +60,99 @@ There is nothing to set up: if that database doesn't exist, the world time is of
 
 VRCX has to be **running** for the world time to show: only then does it log world changes, so while it's closed the line stays blank instead of showing a world you may have left. If you start VRCX after joining a world, the time shows from the next world you join.
 
+## Settings
+
+With the patched WayVR (`26.8.0-1.3`, see [Install](#install)): WayVR dashboard → **Settings** → **FPS stats**. Every change applies to the watch within 2 seconds, no restart needed, and is kept between sessions.
+
+| Setting | |
+|---|---|
+| Enabled | Master switch, the same one as WiVRn dashboard → Settings → **fpsVR-style stats on the WayVR watch**. Off: the stats, the stats button and the time lines disappear from the watch and `wayvr-stats` does nothing. |
+| Mode | **Full**: the panel as shown above. **Minimal**: FPS and Avg FPS only, in one line. |
+| Frame time graphs | The GPU / CPU graphs. On by default with the patched WayVR. |
+| FPS stats: show | One switch per element: game name, FPS, Avg FPS, GPU / CPU frame time (label and graph), GPU temperature and load, VRAM, CPU temperature and load, RAM, game time, VRChat world time, Hide / Show stats button. Used in Full mode. |
+
+The tab writes `~/.config/wayvr-stats/settings.json`, and the master switch is `"wayvr-stats"` in `~/.config/wivrn/config.json`. Without the patched WayVR, edit `settings.json` by hand; `wayvr-stats` picks up changes within 2 seconds:
+
+```json
+{
+  "mode": "full",
+  "graphs": false,
+  "show": { "vram": false, "world": false }
+}
+```
+
+`mode` is `full` or `minimal`; `show` takes the keys `title`, `fps`, `avg`, `gpu_ms`, `cpu_ms`, `gpu`, `vram`, `cpu`, `ram`, `session`, `world`, `button` (left out means shown). Keep `graphs` off with stock WayVR (see [Graphs](#graphs)).
+
+Colours are set in the service (`systemctl --user edit wayvr-stats.service`, then `systemctl --user restart wayvr-stats.service`):
+
+| Variable | Default | |
+|---|---|---|
+| `WAYVR_STATS_COLOR` | `#FFFFFF` | Colour of the dashed frame budget line. |
+| `WAYVR_STATS_TEXT` | `#FFFFFF` | Normal colour of FPS / Avg / ms (match your watch's text colour; `#F4ECFF` for `watch-purple.xml`). |
+
+The rest of the watch colours are the theme variables at the top of `watch.xml`.
+
 ## Requirements
 
 - `wivrn-server` from this fork, **v26.9-qpro.3 or later** (it writes `/dev/shm/wivrn-frametime`). Stock WiVRn doesn't export frame times; the panel then only shows the hardware stats.
-- WayVR 26.8 with `wayvrctl` (included in the `wayvr` package). For the graphs: the patched WayVR from [`wayvr-pkg`](wayvr-pkg) (see [Graphs](#graphs)).
-- Python 3 (standard library only) and a systemd user session.
+- WayVR 26.8 with `wayvrctl`. For the graphs and the Settings tab: the patched WayVR **26.8.0-1.3** (see the [main README](../../README.md#install) for every distribution).
+- Python 3 (standard library only) and a systemd user session (every distribution in the main README has both).
 - Optional: VRCX, for the VRChat world time.
 
 ## Install
 
-### 1. The stats script
+The files are in this folder, and attached to each [release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest). From the release, download:
 
-From this folder:
+| File | Needed for |
+|---|---|
+| `wayvr-stats`, `wayvr-stats.path`, `wayvr-stats.service` | always |
+| `fpsvr-icons.tar.gz` | always (stats button and empty graph icons) |
+| `watch.xml` or `watch-purple.xml` | option A: replace your watch |
+| `fpsvr-stats.xml`, `fpsvr-button.xml`, `fpsvr-clock.xml` | option B: add the stats to your own watch |
+| `wayvr-26.8.0-1.3-x86_64.pkg.tar.zst` | Arch-based only: the patched WayVR (others build it, see the main README) |
+
+### 1. The stats script and icons
+
+In the folder with the downloaded files (or this folder, in a clone of the repository):
 
 ```sh
+cd ~/WiVRn-QPro-OSC/contrib/wayvr-fpsvr   # or the folder with the release downloads
+[ -f fpsvr-icons.tar.gz ] && tar xf fpsvr-icons.tar.gz   # release downloads only: unpacks fpsvr/
 install -Dm755 wayvr-stats ~/.local/bin/wayvr-stats
 install -Dm644 -t ~/.config/systemd/user wayvr-stats.path wayvr-stats.service
+install -Dm644 -t ~/.config/wayvr/theme/fpsvr fpsvr/*.svg
 systemctl --user daemon-reload
 systemctl --user enable --now wayvr-stats.path
 ```
 
-The stats start by themselves whenever WayVR starts, however it is launched, and follow WayVR across restarts and crashes (the service also restarts the script if it fails).
+No root needed: everything goes into your home folder. The stats start by themselves whenever WayVR starts, however it is launched, and follow WayVR across restarts and crashes (the service also restarts the script if it fails).
 
 ### 2. The watch
 
-Pick one. The files are in this folder and attached to each [release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases).
+Pick one.
 
 **A. Replace your watch** with a complete one: `watch.xml` (white) or `watch-purple.xml` (purple). Back up your own first:
 
 ```sh
-cp ~/.config/wayvr/theme/gui/watch.xml ~/.config/wayvr/theme/gui/watch.xml.bak 2>/dev/null
+[ -f ~/.config/wayvr/theme/gui/watch.xml ] && cp ~/.config/wayvr/theme/gui/watch.xml ~/.config/wayvr/theme/gui/watch.xml.bak
 install -Dm644 watch.xml ~/.config/wayvr/theme/gui/watch.xml   # or watch-purple.xml
 ```
 
 **B. Keep your watch and add the stats to it.** Copy the add-ons next to your `watch.xml`:
 
 ```sh
-install -Dm644 -t ~/.config/wayvr/theme/gui fpsvr-stats.xml fpsvr-clock.xml
+install -Dm644 -t ~/.config/wayvr/theme/gui fpsvr-stats.xml fpsvr-button.xml fpsvr-clock.xml
 ```
 
 then add one line for each to your `~/.config/wayvr/theme/gui/watch.xml`, inside `<elements>`:
 
 ```xml
-<include src="fpsvr-stats.xml" />   <!-- the stats panel, e.g. below the bottom button row -->
-<include src="fpsvr-clock.xml" />   <!-- game and world time, e.g. right under the clock's date row -->
+<include src="fpsvr-stats.xml" />    <!-- the stats panel, e.g. right below the clock box -->
+<include src="fpsvr-button.xml" />   <!-- the square Hide/Show stats button, e.g. right after the dashboard button -->
+<include src="fpsvr-clock.xml" />    <!-- game and world time, e.g. right under the clock's date row -->
 ```
 
-The add-ons bring their own colours, templates and buttons (all named `fv_*`, so they don't clash with your watch). Their colours are the `fv_color_*` variables at the top of each file (white by default).
+The add-ons bring their own colours, templates and buttons (all named `fv_*`, so they don't clash with your watch). Their colours are the `fv_color_*` variables at the top of each file (white by default). Hiding the stats makes your watch shorter; to keep its size, give your watch's outermost `<div>` a `min_height` of its height with the stats shown (`watch.xml` uses 452).
 
 Then restart WayVR (`wayvr --replace`, or close and start it) so it loads the new watch.
 
@@ -103,46 +160,17 @@ The clock is WayVR's own and shows your system's local time zone; the date follo
 
 ## Graphs
 
-The frame time graphs are **off by default**, because stock WayVR 26.8.0 can't show them for long:
+The frame time graphs are **off by default** with stock WayVR, because WayVR 26.8.0 can't show them for long. The patched WayVR (`wayvr-pkg`, `26.8.0-1.3`) fixes that and turns them on:
 
-- It never frees the atlas it keeps rendered images and text in, so every new graph image stays there until WayVR exits with `Atlas full` (after about 22 minutes of graphs). [`glyph-atlas-trim.patch`](wayvr-pkg/glyph-atlas-trim.patch) lets the atlas reuse space from images that are no longer drawn, once per frame after all overlays finished rendering. Tested with 400 000 graph images (3.7 h of graphs) without problems.
-- Unrelated to the graphs, WayVR 26.8.0 can crash ("Wrong type to unwrap") when a screen share connects at once from a saved PipeWire token; [`screencast-status-crash.patch`](wayvr-pkg/screencast-status-crash.patch) fixes that too.
+- Stock WayVR never frees the atlas it keeps rendered images and text in, so every new graph image stays there until WayVR exits with `Atlas full` (after about 22 minutes of graphs). [`glyph-atlas-trim.patch`](wayvr-pkg/glyph-atlas-trim.patch) lets the atlas reuse space from images that are no longer drawn, once per frame after all overlays finished rendering. Tested with 400 000 graph images (3.7 h of graphs) without problems.
+- Unrelated to the graphs, WayVR 26.8.0 can crash ("Wrong type to unwrap") when a screen share connects at once from a saved PipeWire token; [`screencast-status-crash.patch`](wayvr-pkg/screencast-status-crash.patch) fixes that.
+- [`fpsvr-settings-tab.patch`](wayvr-pkg/fpsvr-settings-tab.patch) adds **Settings → FPS stats**.
 
-Install the patched WayVR (`wayvr 26.8.0-1.2`): download `wayvr-26.8.0-1.2-x86_64.pkg.tar.zst` from the [release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases) and `sudo pacman -U` it, or build it from [`wayvr-pkg`](wayvr-pkg) (the AUR `wayvr` 26.8.0 package plus both patches):
-
-```sh
-cd wayvr-pkg
-makepkg -si
-```
-
-Then turn the graphs on:
-
-```sh
-systemctl --user edit wayvr-stats.service
-```
-
-```ini
-[Service]
-Environment=WAYVR_STATS_GRAPHS=1
-```
-
-Without the patched WayVR, everything except the graphs works.
-
-## Settings
-
-All in the service (`systemctl --user edit wayvr-stats.service`, then restart WayVR or `systemctl --user restart wayvr-stats.service`):
-
-| Variable | Default | |
-|---|---|---|
-| `WAYVR_STATS_GRAPHS` | off | `1` turns the graphs on (patched WayVR only). |
-| `WAYVR_STATS_COLOR` | `#FFFFFF` | Colour of the dashed frame budget line. |
-| `WAYVR_STATS_TEXT` | `#FFFFFF` | Normal colour of FPS / Avg / ms (match your watch's text colour; `#F4ECFF` for `watch-purple.xml`). |
-
-The rest of the watch colours are the theme variables at the top of `watch.xml`.
+How to install it on each distribution: [main README](../../README.md#install).
 
 ## Cost
 
-Measured in VRChat on a 16-core CPU: `wayvr-stats` and its `wayvrctl` connection use about 0.9 % of one core and 20 MB of RAM, and drawing the graphs adds about 0.9 % of one core to WayVR (about 0.1 % of the whole CPU in total).
+Measured in VRChat on a 16-core CPU: `wayvr-stats` and its `wayvrctl` connection use about 0.9 % of one core and 20 MB of RAM, and drawing the graphs adds about 0.9 % of one core to WayVR (about 0.1 % of the whole CPU in total). Hidden or turned off, it reads nothing.
 
 ## Reporting problems
 
@@ -157,8 +185,8 @@ Open an issue with the [WayVR watch stats form](https://github.com/Seventh-Void/
 
 ## How it works
 
-`wivrn-server` writes each frame's CPU and GPU time for the focused game into a ring buffer at `/dev/shm/wivrn-frametime` (layout documented in [`server/driver/app_pacer.cpp`](../../server/driver/app_pacer.cpp)). `wayvr-stats` reads it 15 times a second, draws the graphs as small SVG files in `$XDG_RUNTIME_DIR` and sends them, the labels and their colours to the watch through one `wayvrctl batch` connection. Labels and colours are only resent when they change.
+`wivrn-server` writes each frame's CPU and GPU time for the focused game into a ring buffer at `/dev/shm/wivrn-frametime` (layout documented in [`server/driver/app_pacer.cpp`](../../server/driver/app_pacer.cpp)). `wayvr-stats` reads it 15 times a second, draws the graphs as small SVG files in `$XDG_RUNTIME_DIR` and sends them, the labels, their colours and which elements show to the watch through one `wayvrctl batch` connection. Only changes are sent.
 
-The Hide/Show buttons use WayVR's `::ElementSetDisplay`, and `::ShellExec` to create or remove `$XDG_RUNTIME_DIR/wayvr-stats.hidden`, which pauses the script.
+The Hide/Show button uses WayVR's `::ElementSetDisplay`, and `::ShellExec` to create or remove `$XDG_RUNTIME_DIR/wayvr-stats.hidden`, which pauses the script. Settings and the master switch are files the script re-reads every 2 seconds.
 
 `wayvr-stats.path` starts the script whenever WayVR writes `$XDG_RUNTIME_DIR/wayvr.pid` (on every start). The script exits when no WayVR is left.

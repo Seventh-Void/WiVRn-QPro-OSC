@@ -124,6 +124,7 @@ void Settings::emitAllChanged()
 	debugGuiChanged();
 	steamVrLhChanged();
 	vrchatOscChanged();
+	wayvrStatsChanged();
 	qproPupilsChanged();
 	qproPupilSensitivityChanged();
 	lhMaxExtrapolationEnabledChanged();
@@ -441,6 +442,24 @@ void Settings::set_vrchatOsc(const bool & value)
 		vrchatOscChanged();
 }
 
+// Read by contrib/wayvr-fpsvr/wayvr-stats, not by the server: on unless "wayvr-stats": false.
+bool Settings::wayvrStats() const
+{
+	auto it = m_jsonSettings.find("wayvr-stats");
+	return it == m_jsonSettings.end() or not it->is_boolean() or it->get<bool>();
+}
+
+void Settings::set_wayvrStats(const bool & value)
+{
+	auto old = wayvrStats();
+	if (value)
+		m_jsonSettings.erase("wayvr-stats");
+	else
+		m_jsonSettings["wayvr-stats"] = false;
+	if (old != value)
+		wayvrStatsChanged();
+}
+
 bool Settings::qproPupils() const
 {
 	auto it = m_jsonSettings.find("qpro-pupils");
@@ -659,6 +678,7 @@ void Settings::restore_defaults()
 	m_jsonSettings.erase("debug-gui");
 	m_jsonSettings.erase("use-steamvr-lh");
 	m_jsonSettings.erase("vrchat-osc");
+	m_jsonSettings.erase("wayvr-stats");
 	m_jsonSettings.erase("qpro-pupils");
 	m_jsonSettings.erase("lh-stick-deadzone");
 	m_jsonSettings.erase("tcp-only");

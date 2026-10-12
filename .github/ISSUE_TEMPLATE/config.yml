@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Setup guide
-    url: https://github.com/Seventh-Void/WiVRn-QPro-OSC#set-up
+    url: https://github.com/Seventh-Void/WiVRn-QPro-OSC#part-1-wivrn-qpro-osc-face-tracking-to-vrchat-and-resonite
     about: Install and setup steps for VRChat, Resonite and pupil tracking.
   - name: BoltOn guide
     url: https://guides.mxr.lol/guides/bolton/

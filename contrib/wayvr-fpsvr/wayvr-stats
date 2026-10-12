@@ -3,56 +3,63 @@
 
 Per-frame CPU/GPU times and the name of the focused VR app come from
 /dev/shm/wivrn-frametime, written by wivrn-server from WiVRn-QPro-OSC
-(v26.9-qpro.3 or later). Temps, load, VRAM and RAM come from sysfs/procfs.
-Everything goes to the watch through one persistent `wayvrctl batch` pipe.
-Values that can't be read on this machine stay "--"; nothing is estimated.
+(v26.9-qpro.3 or later). Temps, load, VRAM and RAM come from sysfs/procfs
+(AMD) or NVML (NVIDIA, untested). Everything goes to the watch through one
+persistent `wayvrctl batch` pipe. Values that can't be read on this machine
+stay "--"; nothing is estimated.
+
+Settings (mode, which elements show, graphs) are read live from
+~/.config/wayvr-stats/settings.json, written by the "FPS stats" tab of the
+patched WayVR's Settings (or by hand). The master switch is "wayvr-stats" in
+~/.config/wivrn/config.json (WiVRn dashboard or that tab).
 
 Started by wayvr-stats.path whenever WayVR (re)writes its pid file; exits once
-that WayVR is gone.
+no WayVR is left.
 """
 import collections
 import contextlib
+import ctypes
 import datetime
 import glob
+import json
 import mmap
-import re
-import sqlite3
 import os
+import re
+import shlex
+import sqlite3
 import struct
 import subprocess
 import time
 
 SHM = "/dev/shm/wivrn-frametime"
-RUNDIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+# Per-user, mode 0700. No /tmp fallback: predictable names in a shared /tmp could be symlink-attacked.
+RUNDIR = os.environ.get("XDG_RUNTIME_DIR") or exit("wayvr-stats: XDG_RUNTIME_DIR is not set (run it from a user session)")
+CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
 GRAPH = os.path.join(RUNDIR, "wayvr-stats-{}-{}.svg")  # alternates 0/1 so WayVR never reads a half-written file
 PIDFILE = os.path.join(RUNDIR, "wayvr.pid")
+HIDDEN = os.path.join(RUNDIR, "wayvr-stats.hidden")  # made/removed by the watch's Hide/Show stats button
+SETTINGS = os.path.join(CONFIG_HOME, "wayvr-stats", "settings.json")
+# WiVRn dashboard → Settings → "fpsVR-style stats on the WayVR watch" writes "wayvr-stats": false here
+WIVRN_CONFIG = os.path.join(CONFIG_HOME, "wivrn", "config.json")
 # WayVR truncates its log on every start, so save it as soon as WayVR exits
 WAYVR_LOG = os.environ.get("WAYVR_LOGFILE", "/tmp/wayvr.log")
 STATE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "wayvr-stats")
 CRASH = re.compile(r"panicked|Atlas full")
 KEEP_CRASHES = 10
-VRCX_DB = os.path.expanduser("~/.config/VRCX/VRCX.sqlite3")  # optional: VRChat world time
-HIDDEN = os.path.join(RUNDIR, "wayvr-stats.hidden")  # made/removed by the watch's Hide/Show buttons
+VRCX_DB = os.path.join(CONFIG_HOME, "VRCX", "VRCX.sqlite3")  # optional: VRChat world time
 W, H = 150, 36                      # must match the fv_*_graph sprites in watch.xml; 1 px per frame
 GRAPH_HZ, LABEL_HZ = 15, 3
-COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # graph color, #RRGGBB
-GRAPHS = os.environ.get("WAYVR_STATS_GRAPHS") == "1"  # needs a patched WayVR, see README.md
+COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # dashed budget line, #RRGGBB
+TEXT = os.environ.get("WAYVR_STATS_TEXT", "#FFFFFF")  # labels that are fine; match the watch's text color
 # Layout from app_pacer.cpp: u64 count, u32 period_us, u32 reserved, char app_name[64], frames
 HDR, NAME, FRAME, RING = struct.Struct("=QII"), 64, struct.Struct("=II"), 256
 FRAMES_AT = HDR.size + NAME
 GIB = 1 << 30
+ELEMENTS = ("title", "fps", "avg", "gpu_ms", "cpu_ms", "gpu", "vram", "cpu", "ram", "session", "world", "button")
+MINIMAL_OFF = ("title", "gpu_ms", "cpu_ms", "gpu", "vram", "cpu", "ram")  # Minimal mode: FPS and Avg only
 
-
-def hwmon(name):
-    for h in glob.glob("/sys/class/hwmon/hwmon*"):
-        if open(f"{h}/name").read().strip() == name:
-            return h
-    return None
-
-
-# hwmon numbers change between boots, so look sensors up by driver name.
-# amdgpu temp2 = junction (hotspot); k10temp temp1 = Tctl; coretemp temp1 = package.
-GPU_MON, CPU_MON = hwmon("amdgpu"), hwmon("k10temp") or hwmon("coretemp")
+# fpsVR-style bar colors per frame: within budget, up to 25 % over, worse
+GOOD, LATE, BAD = "#22C55E", "#F59E0B", "#EF4444"
 
 
 def num(path, default=0):
@@ -60,6 +67,70 @@ def num(path, default=0):
         return int(open(path).read())
     except (OSError, ValueError, TypeError):
         return default
+
+
+def hwmons(name):
+    """hwmon dirs of a driver; their numbers change between boots, so look them up by name."""
+    found = []
+    for h in sorted(glob.glob("/sys/class/hwmon/hwmon*")):
+        try:
+            if open(f"{h}/name").read().strip() == name:
+                found.append(h)
+        except OSError:
+            pass
+    return found
+
+
+def amd_gpu():
+    """Reader for the amdgpu card with the most VRAM (so a Ryzen iGPU never hides the dGPU), or None."""
+    cards = hwmons("amdgpu")
+    if not cards:
+        return None
+    mon = max(cards, key=lambda h: num(f"{h}/device/mem_info_vram_total"))
+    dev = f"{mon}/device"
+    temp = f"{mon}/temp2_input" if os.path.exists(f"{mon}/temp2_input") else f"{mon}/temp1_input"  # temp2 = junction
+
+    def read():
+        t = num(temp, None)
+        return (None if t is None else t // 1000, num(f"{dev}/gpu_busy_percent", None),
+                num(f"{dev}/mem_info_vram_used", None), num(f"{dev}/mem_info_vram_total", None))
+    return read
+
+
+class _NvUtil(ctypes.Structure):
+    _fields_ = [("gpu", ctypes.c_uint), ("memory", ctypes.c_uint)]
+
+
+class _NvMem(ctypes.Structure):
+    _fields_ = [("total", ctypes.c_ulonglong), ("free", ctypes.c_ulonglong), ("used", ctypes.c_ulonglong)]
+
+
+def nvidia_gpu():
+    """Reader for the first NVIDIA GPU through NVML (libnvidia-ml.so.1, part of the driver), or None.
+    Untested: written without NVIDIA hardware. Any NVML error just leaves that value as "--"."""
+    try:
+        nvml = ctypes.CDLL("libnvidia-ml.so.1")
+        if nvml.nvmlInit_v2() != 0:
+            return None
+        handle = ctypes.c_void_p()
+        if nvml.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(handle)) != 0:
+            return None
+    except (OSError, AttributeError):
+        return None
+
+    def read():
+        temp, util, mem = ctypes.c_uint(), _NvUtil(), _NvMem()
+        ok_temp = nvml.nvmlDeviceGetTemperature(handle, 0, ctypes.byref(temp)) == 0  # 0 = NVML_TEMPERATURE_GPU
+        ok_util = nvml.nvmlDeviceGetUtilizationRates(handle, ctypes.byref(util)) == 0
+        ok_mem = nvml.nvmlDeviceGetMemoryInfo(handle, ctypes.byref(mem)) == 0
+        return (temp.value if ok_temp else None, util.gpu if ok_util else None,
+                mem.used if ok_mem else None, mem.total if ok_mem else None)
+    return read
+
+
+# k10temp temp1 = Tctl (AMD); coretemp temp1 = package (Intel)
+CPU_MON = next(iter(hwmons("k10temp") or hwmons("coretemp")), None)
+GPU = amd_gpu() or nvidia_gpu()  # () -> (temp °C, load %, VRAM used, VRAM total), each None if unknown
 
 
 def wayvr_pid():
@@ -80,13 +151,9 @@ def ram_gib():
     return (int(m["MemTotal:"]) - int(m["MemAvailable:"])) * 1024 / GIB, int(m["MemTotal:"]) * 1024 / GIB
 
 
-def quote(s):
-    return "'" + s.replace("'", "'\\''") + "'"
-
-
-# fpsVR-style bar colors per frame: within budget, up to 25 % over, worse
-GOOD, LATE, BAD = "#22C55E", "#F59E0B", "#EF4444"
-TEXT = os.environ.get("WAYVR_STATS_TEXT", "#FFFFFF")  # labels that are fine; match the watch's text color
+# Label text comes from app names and VRChat world names (anyone can name a world). `wayvrctl batch` reads one
+# command per line, so a newline in it could start another command (e.g. process-launch): drop control characters.
+CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def ms_color(us, period_us):
@@ -112,6 +179,47 @@ def svg(values, period_us):
     paths = "".join(f'<path d="{"".join(d)}" stroke="{c}"/>' for c, d in bars.items() if d)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}">{paths}'
             f'<path d="M0 {H - period_us * H // top} H{W}" stroke="{COLOR}88" stroke-dasharray="3 3"/></svg>')
+
+
+def read_json(path):
+    try:
+        data = json.load(open(path))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def turned_on():
+    return read_json(WIVRN_CONFIG).get("wayvr-stats", True) is not False  # no or unreadable config: on
+
+
+def load_settings():
+    """settings.json -> {"show": {element: bool}, "graphs": bool}, with Minimal mode already applied."""
+    data = read_json(SETTINGS)
+    show = data.get("show") if isinstance(data.get("show"), dict) else {}
+    show = {k: show.get(k, True) is not False for k in ELEMENTS}
+    if data.get("mode") == "minimal":
+        show.update({k: False for k in MINIMAL_OFF}, fps=True, avg=True)
+    # graphs default off: stock WayVR 26.8.0 dies with "Atlas full" after ~22 min of them;
+    # the patched WayVR's Settings → FPS stats tab turns them on
+    return {"show": show, "graphs": data.get("graphs") is True}
+
+
+def visibility(on, hidden, show):
+    """Watch element id -> visible, for the master switch, the Hide/Show button state and the settings."""
+    gpu_col = show["gpu_ms"] or show["gpu"] or show["vram"]
+    cpu_col = show["cpu_ms"] or show["cpu"] or show["ram"]
+    fps_row = show["fps"] or show["avg"]
+    hidden = hidden and show["button"]  # without the button the panel can't stay hidden
+    return {
+        "fv_panel": on and not hidden and (show["title"] or fps_row or gpu_col or cpu_col),
+        "fv_title": show["title"], "fv_fpsrow": fps_row, "fv_fps": show["fps"], "fv_avg_fps": show["avg"],
+        "fv_cols": gpu_col or cpu_col, "fv_gpu_col": gpu_col, "fv_cpu_col": cpu_col,
+        "fv_gpu_ms": show["gpu_ms"], "fv_gpu_graphbox": show["gpu_ms"], "fv_gpu": show["gpu"], "fv_vram": show["vram"],
+        "fv_cpu_ms": show["cpu_ms"], "fv_cpu_graphbox": show["cpu_ms"], "fv_cpu": show["cpu"], "fv_ram": show["ram"],
+        "fv_session": on and show["session"], "fv_world": on and show["world"],
+        "fv_hide_btn": on and show["button"] and not hidden, "fv_show_btn": on and show["button"] and hidden,
+    }
 
 
 def vrcx_running():
@@ -148,6 +256,7 @@ def save_wayvr_log():
     open(os.path.join(STATE, "last-wayvr.log"), "w").write(text)
     if not CRASH.search(text):
         return
+
     def version(cmd):
         try:
             return subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout.strip().replace("\n", ", ") or "?"
@@ -155,7 +264,8 @@ def save_wayvr_log():
             return "?"
     path = os.path.join(STATE, time.strftime("crash-%Y%m%d-%H%M%S.log"))
     header = (f"# WayVR crash log saved by wayvr-stats, {time.strftime('%Y-%m-%d %H:%M:%S %z')}\n"
-              f"# {version(['pacman', '-Q', 'wayvr', 'wivrn-server'])}\n# kernel {os.uname().release}\n\n")
+              f"# {version(['wayvr', '--version'])}, {version(['wivrn-server', '--version'])}\n"
+              f"# kernel {os.uname().release}\n\n")
     open(path, "w").write(header + text)
     for old in sorted(glob.glob(os.path.join(STATE, "crash-*.log")))[:-KEEP_CRASHES]:
         os.remove(old)
@@ -170,23 +280,23 @@ def duration(s):
 def run(pid):
     ctl = subprocess.Popen(["wayvrctl", "batch", "--fail-fast"], stdin=subprocess.PIPE,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
-    shown = {}  # element id -> text currently on the watch
-    colors = {}  # element id -> color currently on the watch
+    shown, colors, visible = {}, {}, {}  # element id -> text / color / visibility currently on the watch
 
     def label(wid, text):
         if shown.get(wid) != text:
             shown[wid] = text
-            ctl.stdin.write(f"panel-modify watch {wid} set-text -- {quote(text)}\n")
+            ctl.stdin.write(f"panel-modify watch {wid} set-text -- {shlex.quote(CONTROL.sub(' ', text))}\n")
 
     def color(wid, hex_color):
         if colors.get(wid) != hex_color:
             colors[wid] = hex_color
             ctl.stdin.write(f"panel-modify watch {wid} set-color '{hex_color}'\n")
 
-    shm, last, flip = None, 0, 0
+    shm, last, flip = None, 0, {"gpu": 0, "cpu": 0}  # per graph: next of its two files
     cpu_hist, gpu_hist = collections.deque(maxlen=W), collections.deque(maxlen=W)
     recent = collections.deque()  # (arrival time, cpu_us, gpu_us) over the last second
     app, app_start, app_frames = "", 0.0, 0
+    on, settings, next_config = True, load_settings(), 0.0  # re-read every 2 s
     period_us, next_label, hidden, fps_from = 11111, 0.0, False, 0.0  # fps_from: start of a gap-free 1 s window
     seen, alive_at = -1, -1e9  # frame counter last seen, and when it last moved
     world, world_at = None, 0.0  # cached vrcx_world() and when it was read
@@ -214,7 +324,7 @@ def run(pid):
         in_game = app and now - alive_at < 5
         name = app if len(app) <= 16 else app[:15] + "…"  # the clock face is narrower than the panel
         label("fv_session", f"{name} - {duration(now - app_start)}" if in_game else "No VR game")
-        if in_game and "VRChat" in app:
+        if in_game and "VRChat" in app and settings["show"]["world"]:
             if now - world_at >= 5:
                 world, world_at = vrcx_world(), now
         else:
@@ -234,6 +344,22 @@ def run(pid):
                     shm = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
                 last = HDR.unpack_from(shm)[0]  # start from now, skip old frames
 
+            if now >= next_config:
+                next_config = now + 2
+                on, settings = turned_on(), load_settings()
+                if not settings["show"]["button"] and os.path.exists(HIDDEN):
+                    os.remove(HIDDEN)  # no button left to show the stats again
+                for wid, vis in visibility(on, os.path.exists(HIDDEN), settings["show"]).items():
+                    if visible.get(wid) != vis:  # everything on the first pass, then only changes
+                        visible[wid] = vis
+                        ctl.stdin.write(f"panel-modify watch {wid} set-visible {1 if vis else 0}\n")
+                ctl.stdin.flush()
+            show = settings["show"]
+            if not on:  # turned off: nothing on the watch, no reads
+                hidden = True  # resume like "Show stats" when turned back on
+                time.sleep(0.5)
+                continue
+
             if os.path.exists(HIDDEN):  # panel hidden: only the game time under the clock keeps going
                 hidden = True
                 if shm is not None:
@@ -242,7 +368,6 @@ def run(pid):
                     if app != prev:  # don't count the old app's frames in the new one's Avg
                         last = count
                 session(now)
-                label("fv_title", app or "No VR app")  # in the header, which stays visible
                 ctl.stdin.flush()
                 time.sleep(0.5)
                 continue
@@ -267,16 +392,15 @@ def run(pid):
             while recent and recent[0][0] < now - 1:
                 recent.popleft()
 
-            # Graphs are opt-in: unpatched WayVR (26.8.0) never frees its glyph atlas,
-            # so every new graph image leaks until WayVR dies with "Atlas full".
-            # See wayvr-pkg/glyph-atlas-trim.patch / README.md.
-            if new and GRAPHS:
+            # Graphs only with the patched WayVR (see load_settings), and only for columns that show
+            if new and settings["graphs"]:
                 for key, hist in (("gpu", gpu_hist), ("cpu", cpu_hist)):
-                    path = GRAPH.format(key, flip)
-                    with open(path, "w") as f:
-                        f.write(svg(hist, period_us))
-                    ctl.stdin.write(f"panel-modify watch fv_{key}_graph set-image {path}\n")
-                flip ^= 1
+                    if show[f"{key}_ms"]:
+                        path = GRAPH.format(key, flip[key])
+                        with open(path, "w") as f:
+                            f.write(svg(hist, period_us))
+                        ctl.stdin.write(f"panel-modify watch fv_{key}_graph set-image {path}\n")
+                        flip[key] ^= 1
 
             if now >= next_label:
                 next_label = now + 1 / LABEL_HZ
@@ -301,16 +425,19 @@ def run(pid):
                     for wid in ("fv_fps", "fv_avg_fps", "fv_gpu_ms", "fv_cpu_ms"):
                         color(wid, TEXT)
 
-                t, i = cpu_times()
-                cpu_load, pt, pi = 100 * ((t - pt) - (i - pi)) // max(t - pt, 1), t, i
-                temp = f"{num(f'{CPU_MON}/temp1_input') // 1000}°C  " if CPU_MON else ""
-                label("fv_cpu", f"{temp}{cpu_load}%")
-                if GPU_MON:
-                    dev = f"{GPU_MON}/device"
-                    label("fv_gpu", f"{num(f'{GPU_MON}/temp2_input') // 1000}°C  {num(f'{dev}/gpu_busy_percent')}%")
-                    label("fv_vram", f"VRAM {num(f'{dev}/mem_info_vram_used') / GIB:.1f}/{num(f'{dev}/mem_info_vram_total') / GIB:.1f} GB")
-                used, total = ram_gib()
-                label("fv_ram", f"RAM {used:.1f}/{total:.1f} GB")
+                # hardware lines: only read what shows
+                if show["cpu"]:
+                    t, i = cpu_times()
+                    cpu_load, pt, pi = 100 * ((t - pt) - (i - pi)) // max(t - pt, 1), t, i
+                    temp = f"{num(f'{CPU_MON}/temp1_input') // 1000}°C  " if CPU_MON else ""
+                    label("fv_cpu", f"{temp}{cpu_load}%")
+                if show["gpu"] or show["vram"]:
+                    temp, load, used, total = GPU() if GPU else (None, None, None, None)
+                    label("fv_gpu", f"{'--' if temp is None else temp}°C  {'--' if load is None else load}%")
+                    label("fv_vram", f"VRAM {used / GIB:.1f}/{total / GIB:.1f} GB" if used is not None and total else "VRAM --")
+                if show["ram"]:
+                    used, total = ram_gib()
+                    label("fv_ram", f"RAM {used:.1f}/{total:.1f} GB")
 
             ctl.stdin.flush()
             time.sleep(1 / GRAPH_HZ)

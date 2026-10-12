@@ -6,8 +6,6 @@ ExecStart=%h/.local/bin/wayvr-stats
 # If the script itself crashes, start it again (it exits normally once WayVR is gone)
 Restart=on-failure
 RestartSec=2
-# Frame time graphs. Only with the patched WayVR from wayvr-pkg (see README.md).
-#Environment=WAYVR_STATS_GRAPHS=1
 # Colour of the dashed frame budget line (#RRGGBB).
 #Environment=WAYVR_STATS_COLOR=#FFFFFF
 # Normal colour of FPS/Avg/ms; they only turn orange or red when bad. #F4ECFF for watch-purple.xml.

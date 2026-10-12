@@ -158,13 +158,13 @@
 
     <!-- fpsVR-style column: header with frame time, graph, temp/load, memory -->
     <template name="StatColumn">
-      <div flex_direction="column" gap="2">
+      <div id="fv_${key}_col" flex_direction="column" gap="2">
         <div justify_content="space_between" width="100%">
           <label text="${name}" size="14" color="~color_faded" weight="bold" />
           <label id="fv_${key}_ms" text="-- ms" size="14" color="~color_text" weight="bold" />
         </div>
-        <rectangle border="1" border_color="~color_accent_40" round="4">
-          <sprite id="fv_${key}_graph" width="150" height="36" />
+        <rectangle id="fv_${key}_graphbox" border="1" border_color="~color_accent_40" round="4">
+          <sprite id="fv_${key}_graph" width="150" height="36" src="fpsvr/graph-empty.svg" />
         </rectangle>
         <label id="fv_${key}" text="--" size="13" color="~color_text" />
         <label id="${extra}" text="--" size="13" color="~color_faded" />
@@ -176,10 +176,13 @@
     </template>
 
     <elements>
+      <!-- min_height = the watch's full height with the stats shown (measured: 452 px), so hiding the
+           stats doesn't resize the watch; the buttons move up and the space below stays empty -->
       <div padding="32"
            interactable="0"
            flex_direction="column"
-           gap="8">
+           gap="8"
+           min_height="452">
 
         <!-- Devices -->
         <div id="devices_root"
@@ -233,6 +236,29 @@
                             height="40"
                             src="watch/edit.svg" />
                     </Button>
+                      <!-- Hide / show the stats; the flag file pauses wayvr-stats while hidden -->
+                      <div id="fv_hide_btn">
+                        <Button macro="button_style"
+                                _press="::ElementSetDisplay fv_panel none"
+                                _press2="::ElementSetDisplay fv_hide_btn none"
+                                _press3="::ElementSetDisplay fv_show_btn flex"
+                                _press4="::ShellExec touch &quot;$XDG_RUNTIME_DIR/wayvr-stats.hidden&quot;"
+                                tooltip_str="Hide stats"
+                                tooltip_side="left">
+                          <sprite color="~color_text" width="40" height="40" src="fpsvr/stats.svg" />
+                        </Button>
+                      </div>
+                      <div id="fv_show_btn" display="none">
+                        <Button macro="button_style"
+                                _press="::ElementSetDisplay fv_panel flex"
+                                _press2="::ElementSetDisplay fv_show_btn none"
+                                _press3="::ElementSetDisplay fv_hide_btn flex"
+                                _press4="::ShellExec rm -f &quot;$XDG_RUNTIME_DIR/wayvr-stats.hidden&quot;"
+                                tooltip_str="Show stats"
+                                tooltip_side="left">
+                          <sprite color="~color_text" width="40" height="40" src="fpsvr/stats-off.svg" />
+                        </Button>
+                      </div>
                   </div>
 
                   <div gap="8">
@@ -255,20 +281,11 @@
                                 color="~color_text"
                                 src="watch/fix-floor.svg" />
                         </Button>
-                      </div>
-
-                    </div>
-                  </rectangle>
-
-                  <!-- Bottom row -->
-                  <div flex_direction="row" gap="8">
-
-                    <div gap="4">
                       <Button id="btn_dashboard"
                               macro="button_style"
                               _press="::DashToggle"
                               tooltip="WATCH.DASHBOARD"
-                              tooltip_side="top">
+                              tooltip_side="left">
                         <sprite color="~color_text"
                                 width="40"
                                 height="40"
@@ -276,7 +293,27 @@
                         </Button>
                       </div>
 
-                      <VerticalSeparator />
+                    </div>
+                  </rectangle>
+
+                  <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file).
+                       Hidden with the stats button in the clock box (next to the edit button). -->
+                  <rectangle id="fv_panel" macro="decorative_rect" flex_direction="column" gap="4">
+                    <label id="fv_title" text="No VR app" size="14" color="~color_accent" weight="bold" />
+                    <!-- FPS left, Avg FPS right; Minimal mode shows only this row -->
+                    <div id="fv_fpsrow" justify_content="space_between" width="100%">
+                      <label id="fv_fps" text="FPS --" size="14" color="~color_text" weight="bold" />
+                      <label id="fv_avg_fps" text="Avg --" size="14" color="~color_text" weight="bold" />
+                    </div>
+                    <div id="fv_cols" justify_content="space_between" width="100%">
+                      <StatColumn name="GPU" key="gpu" extra="fv_vram" />
+                      <StatColumn name="CPU" key="cpu" extra="fv_ram" />
+                    </div>
+                  </rectangle>
+
+                  <!-- Bottom row -->
+                  <div flex_direction="row" gap="8">
+
 
                       <div id="sets_root" gap="4">
                         <Set idx="0" display="1" />
@@ -289,43 +326,6 @@
                       </div>
 
                     </div>
-
-                  <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file).
-                       fv_area keeps the panel's full size (measured: 356 x 168 px) so hiding the
-                       panel never resizes the watch; while hidden only the Show button is drawn.
-                       The ShellExec flag file pauses wayvr-stats while the stats are hidden. -->
-                  <div id="fv_area" flex_direction="column" min_width="356" min_height="168">
-                    <rectangle id="fv_panel" macro="decorative_rect" flex_direction="column" gap="4">
-                      <div justify_content="space_between" align_items="center" width="100%" gap="8">
-                        <Button macro="button_style" padding="6" gap="6"
-                                _press="::ElementSetDisplay fv_panel none"
-                                _press2="::ElementSetDisplay fv_show_btn flex"
-                                _press3="::ShellExec touch $XDG_RUNTIME_DIR/wayvr-stats.hidden">
-                          <sprite width="36" height="36" color="~color_text" src_builtin="keyboard/up.svg" />
-                          <label text="Hide stats" size="16" color="~color_text" weight="bold" />
-                        </Button>
-                        <label id="fv_title" text="No VR app" size="16" color="~color_accent" weight="bold" />
-                      </div>
-                      <!-- FPS over the GPU column, Avg over the CPU column (fpsVR layout) -->
-                      <div gap="8">
-                        <div width="150"><label id="fv_fps" text="FPS --" size="14" color="~color_text" weight="bold" /></div>
-                        <div width="150"><label id="fv_avg_fps" text="Avg --" size="14" color="~color_text" weight="bold" /></div>
-                      </div>
-                      <div gap="8">
-                        <StatColumn name="GPU" key="gpu" extra="fv_vram" />
-                        <StatColumn name="CPU" key="cpu" extra="fv_ram" />
-                      </div>
-                    </rectangle>
-                    <div id="fv_show_btn" display="none">
-                      <Button macro="button_style" padding="6" gap="6"
-                              _press="::ElementSetDisplay fv_panel flex"
-                              _press2="::ElementSetDisplay fv_show_btn none"
-                              _press3="::ShellExec rm -f $XDG_RUNTIME_DIR/wayvr-stats.hidden">
-                        <sprite width="36" height="36" color="~color_text" src_builtin="keyboard/down.svg" />
-                        <label text="Show stats" size="16" color="~color_text" weight="bold" />
-                      </Button>
-                    </div>
-                  </div>
                   </div>
                 </div>
               </elements>
