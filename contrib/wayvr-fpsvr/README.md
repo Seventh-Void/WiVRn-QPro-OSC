@@ -89,7 +89,7 @@ With the patched WayVR (`26.8.0-1.3`, see [Install](#install)): WayVR dashboard 
 |---|---|
 | Enabled | Master switch, the same one as WiVRn dashboard → Settings → **fpsVR-style stats on the WayVR watch**. Off: the stats, the stats button and the time lines disappear from the watch and `wayvr-stats` does nothing. |
 | Mode | **Full**: the panel as shown above. **Minimal**: FPS and Avg FPS only, in one line. |
-| Frame time graphs | The GPU / CPU graphs. On by default with the patched WayVR. |
+| Frame time graphs | The GPU / CPU graphs. On by default. |
 | FPS stats: show | One switch per element: game name, FPS, Avg FPS, GPU / CPU frame time (label and graph), GPU temperature and load, VRAM, CPU temperature and load, RAM, game time, VRChat world time, Hide / Show stats button. Used in Full mode. |
 
 The tab writes `~/.config/wayvr-stats/settings.json`, and the master switch is `"wayvr-stats"` in `~/.config/wivrn/config.json`. Without the patched WayVR, edit `settings.json` by hand; `wayvr-stats` picks up changes within 2 seconds:
@@ -102,7 +102,7 @@ The tab writes `~/.config/wayvr-stats/settings.json`, and the master switch is `
 }
 ```
 
-`mode` is `full` or `minimal`; `show` takes the keys `title`, `fps`, `avg`, `gpu_ms`, `cpu_ms`, `gpu`, `vram`, `cpu`, `ram`, `session`, `world`, `button` (left out means shown). Keep `graphs` off with stock WayVR (see [Graphs](#graphs)).
+`mode` is `full` or `minimal`; `show` takes the keys `title`, `fps`, `avg`, `gpu_ms`, `cpu_ms`, `gpu`, `vram`, `cpu`, `ram`, `session`, `world`, `button` (left out means shown).
 
 Colours are set in the service (`systemctl --user edit wayvr-stats.service`, then `systemctl --user restart wayvr-stats.service`):
 
@@ -116,7 +116,7 @@ The rest of the watch colours are the theme variables at the top of `watch.xml`.
 ## Requirements
 
 - `wivrn-server` from this fork, **v26.9-qpro.3 or later** (it writes `/dev/shm/wivrn-frametime`). Stock WiVRn doesn't export frame times; the panel then only shows the hardware stats.
-- WayVR 26.8 with `wayvrctl`. For the graphs and the Settings tab: the patched WayVR **26.8.0-1.3** (see the [main README](../../README.md#install) for every distribution).
+- WayVR 26.8 with `wayvrctl`. Optional, for the Settings tab and a screen share crash fix: the patched WayVR **26.8.0-1.3** (see the [main README](../../README.md#install) for every distribution).
 - Python 3 (standard library only) and a systemd user session (every distribution in the main README has both).
 - Optional: VRCX, for the VRChat world time.
 
@@ -159,10 +159,13 @@ The clock is WayVR's own and shows your system's local time zone; the date follo
 
 ## Graphs
 
-The frame time graphs are **off by default** with stock WayVR, because WayVR 26.8.0 can't show them for long. The patched WayVR (`wayvr-pkg`, `26.8.0-1.3`) fixes that and turns them on:
+The frame time graphs are on by default and work with stock WayVR. `wayvr-stats` draws them as small PNG images shown in `<image>` elements. Stock WayVR 26.8.0 never frees the glyph atlas that `<sprite>` elements are drawn from, so graphs in `<sprite>` elements made it exit with `Atlas full` after about 22 minutes; `<image>` elements don't use that atlas. Tested on stock WayVR 26.8.0 in VRChat for 29 minutes.
 
-- Stock WayVR never frees the atlas it keeps rendered images and text in, so every new graph image stays there until WayVR exits with `Atlas full` (after about 22 minutes of graphs). [`glyph-atlas-trim.patch`](wayvr-pkg/glyph-atlas-trim.patch) lets the atlas reuse space from images that are no longer drawn, once per frame after all overlays finished rendering. Tested with 400 000 graph images (3.7 h of graphs) without problems.
-- Unrelated to the graphs, WayVR 26.8.0 can crash ("Wrong type to unwrap") when a screen share connects at once from a saved PipeWire token; [`screencast-status-crash.patch`](wayvr-pkg/screencast-status-crash.patch) fixes that.
+A watch installed from v26.9-qpro.4 or older still has the graphs as `<sprite>`: run `install.sh` again, or in your watch change `<sprite id="fv_${key}_graph"` to `<image id="fv_${key}_graph"` and restart WayVR.
+
+The patched WayVR (`wayvr-pkg`) is optional:
+
+- WayVR 26.8.0 can crash ("Wrong type to unwrap") when a screen share connects at once from a saved PipeWire token; [`screencast-status-crash.patch`](wayvr-pkg/screencast-status-crash.patch) fixes that.
 - [`fpsvr-settings-tab.patch`](wayvr-pkg/fpsvr-settings-tab.patch) adds **Settings → FPS stats**.
 
 How to install it on each distribution: [main README](../../README.md#install).

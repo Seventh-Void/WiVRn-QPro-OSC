@@ -306,7 +306,7 @@ FPS, frame time graphs, temperatures, load and memory on the [WayVR](https://git
 
 ### Step 1: the patched WayVR
 
-The patched WayVR 26.8.0 adds **Settings → FPS stats** and fixes two WayVR crashes (one of them after ~22 minutes of graphs). Install it instead of your distribution's WayVR.
+Optional: the stats and graphs also work with your distribution's WayVR. The patched WayVR 26.8.0 adds **Settings → FPS stats** and fixes a WayVR crash when a screen share connects. To use it, install it instead of your distribution's WayVR.
 
 #### Arch Linux, CachyOS, EndeavourOS, Manjaro
 
@@ -359,7 +359,7 @@ cd ~
    echo "8db6d52b8be462b132d05c119b526094bef9fbe4b8b605dec44e5979f41256ef  wayvr-26.8.0.tar.gz" | sha256sum -c
    tar xf wayvr-26.8.0.tar.gz
    cd wayvr-26.8.0
-   for p in glyph-atlas-trim screencast-status-crash fpsvr-settings-tab; do
+   for p in screencast-status-crash fpsvr-settings-tab; do
      patch -Np1 -i ~/WiVRn-QPro-OSC/contrib/wayvr-fpsvr/wayvr-pkg/$p.patch
    done
    (cd wayvr && cargo build --release --no-default-features --features openxr,osc,wayland,whisper,x11)

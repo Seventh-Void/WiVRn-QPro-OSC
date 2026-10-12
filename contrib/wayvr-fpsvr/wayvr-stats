@@ -214,9 +214,7 @@ def load_settings():
     show = {k: show.get(k, True) is not False for k in ELEMENTS}
     if data.get("mode") == "minimal":
         show.update({k: False for k in MINIMAL_OFF}, fps=True, avg=True)
-    # graphs default off: stock WayVR 26.8.0 dies with "Atlas full" after ~22 min of them;
-    # the patched WayVR's Settings → FPS stats tab turns them on
-    return {"show": show, "graphs": data.get("graphs") is True}
+    return {"show": show, "graphs": data.get("graphs") is not False}
 
 
 def visibility(on, hidden, show):
@@ -406,7 +404,7 @@ def run(pid):
             while recent and recent[0][0] < now - 1:
                 recent.popleft()
 
-            # Graphs only with the patched WayVR (see load_settings), and only for columns that show
+            # Graphs only for columns that show
             if new and settings["graphs"]:
                 for key, hist in (("gpu", gpu_hist), ("cpu", cpu_hist)):
                     if show[f"{key}_ms"]:

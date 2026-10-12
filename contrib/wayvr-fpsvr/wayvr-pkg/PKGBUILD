@@ -1,6 +1,4 @@
-# WayVR 26.8.0 from the AUR package, plus two fixes:
-# - glyph-atlas-trim.patch: WayVR never frees its glyph atlas, so live-updating images
-#   (the frame time graphs) make it exit with "Atlas full" after a while.
+# WayVR 26.8.0 from the AUR package, plus:
 # - screencast-status-crash.patch: WayVR panics ("Wrong type to unwrap") when a screen
 #   share connects at once from a saved PipeWire token.
 # - fpsvr-settings-tab.patch: "FPS stats" tab in the dashboard Settings, for wayvr-stats.
@@ -9,7 +7,7 @@
 
 pkgname=wayvr
 pkgver=26.8.0
-pkgrel=1.3
+pkgrel=1.4
 pkgdesc="Your way to enjoy VR on Linux! Access your Wayland/X11 desktop from SteamVR/Monado (OpenVR+OpenXR support)"
 url="https://github.com/wayvr-org/wayvr"
 arch=('x86_64')
@@ -44,11 +42,9 @@ replaces=("wlx-overlay-s")
 conflicts=("$pkgname")
 provides=("$pkgname")
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
-        "glyph-atlas-trim.patch"
         "screencast-status-crash.patch"
         "fpsvr-settings-tab.patch")
 sha256sums=("8db6d52b8be462b132d05c119b526094bef9fbe4b8b605dec44e5979f41256ef"
-            "70efcbf16a6a6ac2eea2fda80ac3479bc6ddcfe2d2369447410b9ac1de474d25"
             "0b46c39968153e5a8b50ee42eda48abde91fe5df1aa9ba630a94b983a3c92118"
             "4d8edc5e70b8bf2bb8f90283a63f6cf73b5383d84f43d3f66fa7d615c1e4b0f5")
 options=(!lto)
@@ -60,9 +56,6 @@ export SHADERC_LIB_DIR=/usr/lib
 
 prepare() {
   cd "$pkgname-$pkgver"
-  # Free unused glyphs each frame; without it WayVR dies with "Atlas full"
-  # once enough distinct images/glyphs were drawn (e.g. live graphs).
-  patch -Np1 -i "$srcdir/glyph-atlas-trim.patch"
   # Don't panic when a screen share's status update finds the screen already connected.
   patch -Np1 -i "$srcdir/screencast-status-crash.patch"
   # "FPS stats" tab in Settings: writes ~/.config/wayvr-stats/settings.json for wayvr-stats.
