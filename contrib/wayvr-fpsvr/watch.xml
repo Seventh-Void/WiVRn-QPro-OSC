@@ -164,7 +164,7 @@
           <label id="fv_${key}_ms" text="-- ms" size="14" color="~color_text" weight="bold" />
         </div>
         <rectangle id="fv_${key}_graphbox" border="1" border_color="~color_accent_40" round="4">
-          <sprite id="fv_${key}_graph" width="150" height="36" src="fpsvr/graph-empty.svg" />
+          <image id="fv_${key}_graph" width="150" height="36" src="fpsvr/graph-empty.svg" />
         </rectangle>
         <label id="fv_${key}" text="--" size="13" color="~color_text" />
         <label id="${extra}" text="--" size="13" color="~color_faded" />

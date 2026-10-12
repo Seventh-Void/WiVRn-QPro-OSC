@@ -30,12 +30,13 @@ import sqlite3
 import struct
 import subprocess
 import time
+import zlib
 
 SHM = "/dev/shm/wivrn-frametime"
 # Per-user, mode 0700. No /tmp fallback: predictable names in a shared /tmp could be symlink-attacked.
 RUNDIR = os.environ.get("XDG_RUNTIME_DIR") or exit("wayvr-stats: XDG_RUNTIME_DIR is not set (run it from a user session)")
 CONFIG_HOME = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-GRAPH = os.path.join(RUNDIR, "wayvr-stats-{}-{}.svg")  # alternates 0/1 so WayVR never reads a half-written file
+GRAPH = os.path.join(RUNDIR, "wayvr-stats-{}-{}.png")  # alternates 0/1 so WayVR never reads a half-written file
 PIDFILE = os.path.join(RUNDIR, "wayvr.pid")
 HIDDEN = os.path.join(RUNDIR, "wayvr-stats.hidden")  # made/removed by the watch's Hide/Show stats button
 SETTINGS = os.path.join(CONFIG_HOME, "wayvr-stats", "settings.json")
@@ -47,7 +48,7 @@ STATE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.loc
 CRASH = re.compile(r"panicked|Atlas full")
 KEEP_CRASHES = 10
 VRCX_DB = os.path.join(CONFIG_HOME, "VRCX", "VRCX.sqlite3")  # optional: VRChat world time
-W, H = 150, 36                      # must match the fv_*_graph sprites in watch.xml; 1 px per frame
+W, H = 150, 36                      # must match the fv_*_graph images in watch.xml; 1 px per frame
 GRAPH_HZ, LABEL_HZ = 15, 3
 COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # dashed budget line, #RRGGBB
 TEXT = os.environ.get("WAYVR_STATS_TEXT", "#FFFFFF")  # labels that are fine; match the watch's text color
@@ -169,16 +170,29 @@ def label_color(c):
     return TEXT if c == GOOD else c  # labels only stand out when orange or red
 
 
-def svg(values, period_us):
-    """One 1 px bar per frame, colored by its frame time against the frame budget."""
+def png(values, period_us):
+    """One bar per frame, colored by its frame time against the frame budget, as a 2x RGBA PNG.
+    A PNG goes to the GPU as is; an SVG would be rasterized at the size of the whole watch panel."""
     top = 3 * period_us // 2  # dashed line = frame budget, at 2/3 height
+    rows = [bytearray(W * 8) for _ in range(H * 2)]  # 2 px per unit, 4 bytes per px
     x0 = W - len(values)
-    bars = {GOOD: [], LATE: [], BAD: []}
     for i, v in enumerate(values):
-        bars[ms_color(v, period_us)].append(f"M{x0 + i}.5 {H}V{H - min(v, top) * H // top}")
-    paths = "".join(f'<path d="{"".join(d)}" stroke="{c}"/>' for c, d in bars.items() if d)
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}">{paths}'
-            f'<path d="M0 {H - period_us * H // top} H{W}" stroke="{COLOR}88" stroke-dasharray="3 3"/></svg>')
+        px = bytes.fromhex(ms_color(v, period_us)[1:]) + b"\xff"
+        for y in range(2 * (H - min(v, top) * H // top), 2 * H):
+            rows[y][8 * (x0 + i):8 * (x0 + i) + 8] = px * 2
+    dash, a = bytes.fromhex(COLOR[1:7]), 0x88
+    y = H - period_us * H // top
+    for row in rows[2 * y - 1:2 * y + 1]:
+        for x in range(2 * W):
+            if x % 12 < 6:  # 3 units on, 3 off
+                i = 4 * x
+                if row[i + 3]:  # over a bar: blend into it
+                    row[i:i + 3] = bytes((d * a + b * (255 - a)) // 255 for d, b in zip(dash, row[i:i + 3]))
+                else:
+                    row[i:i + 4] = dash + bytes((a,))
+    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 2 * W, 2 * H, 8, 6, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"".join(b"\0" + r for r in rows), 1)) + chunk(b"IEND", b""))
 
 
 def read_json(path):
@@ -397,8 +411,8 @@ def run(pid):
                 for key, hist in (("gpu", gpu_hist), ("cpu", cpu_hist)):
                     if show[f"{key}_ms"]:
                         path = GRAPH.format(key, flip[key])
-                        with open(path, "w") as f:
-                            f.write(svg(hist, period_us))
+                        with open(path, "wb") as f:
+                            f.write(png(hist, period_us))
                         ctl.stdin.write(f"panel-modify watch fv_{key}_graph set-image {path}\n")
                         flip[key] ^= 1
 

@@ -184,7 +184,7 @@ Open an issue with the [WayVR watch stats form](https://github.com/Seventh-Void/
 
 ## Technical details
 
-`wivrn-server` writes each frame's CPU and GPU time for the focused game into a ring buffer at `/dev/shm/wivrn-frametime` (layout documented in [`server/driver/app_pacer.cpp`](../../server/driver/app_pacer.cpp)). `wayvr-stats` reads it 15 times a second, draws the graphs as small SVG files in `$XDG_RUNTIME_DIR` and sends them, the labels, their colours and which elements show to the watch through one `wayvrctl batch` connection. Only changes are sent.
+`wivrn-server` writes each frame's CPU and GPU time for the focused game into a ring buffer at `/dev/shm/wivrn-frametime` (layout documented in [`server/driver/app_pacer.cpp`](../../server/driver/app_pacer.cpp)). `wayvr-stats` reads it 15 times a second, draws the graphs as small PNG files in `$XDG_RUNTIME_DIR` (shown in `<image>` elements, which keeps them out of WayVR's glyph atlas) and sends them, the labels, their colours and which elements show to the watch through one `wayvrctl batch` connection. Only changes are sent.
 
 The Hide/Show button uses WayVR's `::ElementSetDisplay`, and `::ShellExec` to create or remove `$XDG_RUNTIME_DIR/wayvr-stats.hidden`, which pauses the script. Settings and the master switch are files the script re-reads every 2 seconds.
 
