@@ -1,0 +1,95 @@
+name: WayVR watch stats bug
+description: Something in the fpsVR-style WayVR watch stats (contrib/wayvr-fpsvr) doesn't work, or WayVR crashed with it.
+title: "[WayVR stats]: "
+labels:
+  - bug
+  - wayvr-stats
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please check the [WayVR stats README](https://github.com/Seventh-Void/WiVRn-QPro-OSC/tree/qpro-osc/contrib/wayvr-fpsvr#readme) first.
+        Only the first three questions are required; the rest helps fix it faster.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What isn't working?
+      options:
+        - WayVR crashed or closed
+        - Stats panel stays empty / shows only "--"
+        - Graphs don't show or don't move
+        - FPS / frame times / colours look wrong
+        - Hide / Show stats button
+        - Game time or VRChat world time (VRCX) under the clock
+        - Add-on files (fpsvr-stats.xml / fpsvr-clock.xml) in my own watch
+        - Installing (script, systemd units, patched WayVR)
+        - Something else
+    validations:
+      required: true
+
+  - type: dropdown
+    id: watch
+    attributes:
+      label: Which watch do you use?
+      options:
+        - watch.xml (white) from this fork
+        - watch-purple.xml from this fork
+        - My own watch with the fpsvr-*.xml add-ons
+        - My own watch with parts copied in by hand
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Which game, and did it work before?
+      placeholder: |
+        I started VRChat with the patched WayVR and graphs turned on. After about 10 minutes WayVR closed.
+    validations:
+      required: true
+
+  - type: textarea
+    id: crash
+    attributes:
+      label: WayVR crash log (if WayVR crashed)
+      description: |
+        `wayvr-stats` saves WayVR's log when WayVR crashes: attach the newest `~/.local/state/wayvr-stats/crash-*.log` (drag the file here).
+        If there is none, attach `~/.local/state/wayvr-stats/last-wayvr.log` (the log of the last WayVR that exited) or `/tmp/wayvr.log` (the running one; it's wiped when WayVR starts again).
+      placeholder: Drag the log file here.
+
+  - type: textarea
+    id: stats_log
+    attributes:
+      label: Stats script log
+      description: Output of `journalctl --user -u wayvr-stats.service -b --no-pager | tail -n 100`
+      render: text
+
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `pacman -Q wayvr wivrn-server` (graphs need wayvr 26.8.0-1.2 from this fork).
+      placeholder: wayvr 26.8.0-1.2, wivrn-server 26.9-3
+
+  - type: textarea
+    id: service
+    attributes:
+      label: Service settings
+      description: Output of `systemctl --user cat wayvr-stats.service` (shows WAYVR_STATS_GRAPHS / COLOR / TEXT).
+      render: ini
+
+  - type: input
+    id: distro
+    attributes:
+      label: Linux distribution, CPU and GPU
+      description: GPU stats need an AMD GPU (amdgpu); CPU temperature needs k10temp or coretemp.
+      placeholder: CachyOS, Ryzen 7 7800X3D, AMD RX 7800 XT
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context (optional)
+      description: A photo or screenshot of the watch, your own watch.xml if you use the add-ons, VRCX running or not…

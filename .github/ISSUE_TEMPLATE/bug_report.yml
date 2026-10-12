@@ -10,6 +10,7 @@ body:
       value: |
         Thanks for reporting! Please check the [README setup steps](https://github.com/Seventh-Void/WiVRn-QPro-OSC#set-up) first.
         Only the first three questions are required; the rest helps fix it faster.
+        For the WayVR watch stats (contrib/wayvr-fpsvr), use the **WayVR watch stats bug** form instead.
 
   - type: dropdown
     id: area

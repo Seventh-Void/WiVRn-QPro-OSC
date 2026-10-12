@@ -15,6 +15,7 @@ import contextlib
 import datetime
 import glob
 import mmap
+import re
 import sqlite3
 import os
 import struct
@@ -25,6 +26,11 @@ SHM = "/dev/shm/wivrn-frametime"
 RUNDIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
 GRAPH = os.path.join(RUNDIR, "wayvr-stats-{}-{}.svg")  # alternates 0/1 so WayVR never reads a half-written file
 PIDFILE = os.path.join(RUNDIR, "wayvr.pid")
+# WayVR truncates its log on every start, so save it as soon as WayVR exits
+WAYVR_LOG = os.environ.get("WAYVR_LOGFILE", "/tmp/wayvr.log")
+STATE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "wayvr-stats")
+CRASH = re.compile(r"panicked|Atlas full")
+KEEP_CRASHES = 10
 VRCX_DB = os.path.expanduser("~/.config/VRCX/VRCX.sqlite3")  # optional: VRChat world time
 HIDDEN = os.path.join(RUNDIR, "wayvr-stats.hidden")  # made/removed by the watch's Hide/Show buttons
 W, H = 150, 36                      # must match the fv_*_graph sprites in watch.xml; 1 px per frame
@@ -130,6 +136,30 @@ def vrcx_world():
         return row[0], datetime.datetime.fromisoformat(row[1]).timestamp()
     except (sqlite3.Error, TypeError, ValueError):
         return None
+
+
+def save_wayvr_log():
+    """Copy the exited WayVR's log to STATE/last-wayvr.log, and to crash-<time>.log if it crashed."""
+    try:
+        text = open(WAYVR_LOG, errors="replace").read()[-4 << 20:]  # last 4 MB is plenty
+    except OSError:
+        return
+    os.makedirs(STATE, exist_ok=True)
+    open(os.path.join(STATE, "last-wayvr.log"), "w").write(text)
+    if not CRASH.search(text):
+        return
+    def version(cmd):
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=5).stdout.strip().replace("\n", ", ") or "?"
+        except (OSError, subprocess.SubprocessError):
+            return "?"
+    path = os.path.join(STATE, time.strftime("crash-%Y%m%d-%H%M%S.log"))
+    header = (f"# WayVR crash log saved by wayvr-stats, {time.strftime('%Y-%m-%d %H:%M:%S %z')}\n"
+              f"# {version(['pacman', '-Q', 'wayvr', 'wivrn-server'])}\n# kernel {os.uname().release}\n\n")
+    open(path, "w").write(header + text)
+    for old in sorted(glob.glob(os.path.join(STATE, "crash-*.log")))[:-KEEP_CRASHES]:
+        os.remove(old)
+    print(f"WayVR crashed; its log is saved in {path}", flush=True)
 
 
 def duration(s):
@@ -301,4 +331,6 @@ while pid := wayvr_pid():
         except FileNotFoundError:
             pass
     run(pid)
+    if not os.path.exists(f"/proc/{pid}"):  # this WayVR is gone (closed or crashed)
+        save_wayvr_log()
     time.sleep(2)

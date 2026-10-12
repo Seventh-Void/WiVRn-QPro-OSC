@@ -144,6 +144,17 @@ The rest of the watch colours are the theme variables at the top of `watch.xml`.
 
 Measured in VRChat on a 16-core CPU: `wayvr-stats` and its `wayvrctl` connection use about 0.9 % of one core and 20 MB of RAM, and drawing the graphs adds about 0.9 % of one core to WayVR (about 0.1 % of the whole CPU in total).
 
+## Reporting problems
+
+If WayVR crashes, `wayvr-stats` saves its log for you. WayVR itself only logs to `/tmp/wayvr.log`, which it wipes on every start, so the script copies it as soon as a WayVR exits:
+
+- `~/.local/state/wayvr-stats/last-wayvr.log`: the log of the last WayVR that exited, crashed or not.
+- `~/.local/state/wayvr-stats/crash-<date>-<time>.log`: kept when that log shows a crash (a panic or `Atlas full`), with the `wayvr` / `wivrn-server` versions and kernel at the top. The 10 newest are kept.
+
+The script's own log: `journalctl --user -u wayvr-stats.service -b`.
+
+Open an issue with the [WayVR watch stats form](https://github.com/Seventh-Void/WiVRn-QPro-OSC/issues/new?template=wayvr_stats.yml) and attach the newest crash log.
+
 ## How it works
 
 `wivrn-server` writes each frame's CPU and GPU time for the focused game into a ring buffer at `/dev/shm/wivrn-frametime` (layout documented in [`server/driver/app_pacer.cpp`](../../server/driver/app_pacer.cpp)). `wayvr-stats` reads it 15 times a second, draws the graphs as small SVG files in `$XDG_RUNTIME_DIR` and sends them, the labels and their colours to the watch through one `wayvrctl batch` connection. Labels and colours are only resent when they change.
