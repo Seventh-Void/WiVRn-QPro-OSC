@@ -14,6 +14,27 @@ A frame timing panel for [WayVR](https://github.com/wlx-team/wayvr)'s wrist watc
 
 *The watch images are from a real VRChat session on a Quest Pro with this fork, rendered with WayVR's `uidev` previewer (the dark background stands in for the game behind the watch; battery levels are left empty by the previewer). Top: the stats panel, and the same watch with the stats hidden. The GIF replays 24 s of recorded VRChat frames, world loading included, through the panel's own graph and colour code: FPS and frame times turn orange and red while the frames are late, and back to white once it recovers (the temperature, load and memory lines in it are from the moment of the screenshot). Next to it: Minimal mode. Bottom: the FPS stats tab of the patched WayVR's Settings.*
 
+## How it works
+
+Three parts work together, all on your PC:
+
+```mermaid
+flowchart LR
+    game[VR game] -->|frames| server[WiVRn server]
+    server -->|CPU and GPU time of each frame| stats[wayvr-stats]
+    sensors[GPU and CPU sensors, RAM] --> stats
+    settings[WayVR Settings → FPS stats] -->|settings.json| stats
+    stats -->|text, colours, graphs| watch[WayVR watch]
+```
+
+1. **WiVRn server** (Part 1 of this fork) measures how long each frame of your game takes on the CPU and on the GPU, and shares those numbers in memory. Stock WiVRn doesn't do this.
+2. **`wayvr-stats`**, a small Python script, reads those numbers 15 times a second, adds temperatures, load and memory from your system, works out FPS, and draws the graphs.
+3. **WayVR** shows it all on the watch. The script talks to WayVR through `wayvrctl`, WayVR's own remote control, and only sends what changed.
+
+You never start the script yourself. A systemd unit (`wayvr-stats.path`) starts it every time WayVR starts, and the script stops when WayVR closes. The Settings tab saves your choices to a small file that the script checks every 2 seconds, so changes show up without a restart. Hiding the stats with the watch button pauses the script, so it reads nothing until you show them again.
+
+Technical details are [at the end](#technical-details).
+
 ## What it shows
 
 | Item | Source |
@@ -161,7 +182,7 @@ The script's own log: `journalctl --user -u wayvr-stats.service -b`.
 
 Open an issue with the [WayVR watch stats form](https://github.com/Seventh-Void/WiVRn-QPro-OSC/issues/new?template=wayvr_stats.yml) and attach the newest crash log.
 
-## How it works
+## Technical details
 
 `wivrn-server` writes each frame's CPU and GPU time for the focused game into a ring buffer at `/dev/shm/wivrn-frametime` (layout documented in [`server/driver/app_pacer.cpp`](../../server/driver/app_pacer.cpp)). `wayvr-stats` reads it 15 times a second, draws the graphs as small SVG files in `$XDG_RUNTIME_DIR` and sends them, the labels, their colours and which elements show to the watch through one `wayvrctl batch` connection. Only changes are sent.
 
