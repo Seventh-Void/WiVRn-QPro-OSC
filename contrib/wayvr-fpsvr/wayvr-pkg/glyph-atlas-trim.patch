@@ -1,0 +1,45 @@
+diff --git a/wayvr/src/backend/openvr/mod.rs b/wayvr/src/backend/openvr/mod.rs
+index b4b64f6..3372175 100644
+--- a/wayvr/src/backend/openvr/mod.rs
++++ b/wayvr/src/backend/openvr/mod.rs
+@@ -342,6 +342,8 @@ pub fn openvr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
+ 
+         log::trace!("Rendering overlays");
+         futures.wait()?;
++        // GPU work of all overlays is done: unused glyphs may now be evicted.
++        app.wgui_shared.trim_atlases();
+ 
+         overlays
+             .values_mut()
+diff --git a/wayvr/src/backend/openxr/mod.rs b/wayvr/src/backend/openxr/mod.rs
+index beec847..15d244e 100644
+--- a/wayvr/src/backend/openxr/mod.rs
++++ b/wayvr/src/backend/openxr/mod.rs
+@@ -422,6 +422,8 @@ pub fn openxr_run(args: &Args, params: RunParams) -> Result<(), BackendError> {
+ 
+         lines.render(&app, &mut futures)?;
+         futures.wait()?;
++        // GPU work of all overlays is done: unused glyphs may now be evicted.
++        app.wgui_shared.trim_atlases();
+         // End rendering
+ 
+         if let Some(monado_state) = &mut app.monado_state {
+diff --git a/wgui/src/renderer_vk/context.rs b/wgui/src/renderer_vk/context.rs
+index 74be225..3b385c9 100644
+--- a/wgui/src/renderer_vk/context.rs
++++ b/wgui/src/renderer_vk/context.rs
+@@ -146,6 +146,14 @@ impl SharedContext {
+ 		})
+ 	}
+ 
++	/// Lets the glyph atlases evict glyphs that weren't used since the last call.
++	/// Call once per frame, after all command buffers that sample the atlases finished.
++	pub fn trim_atlases(&mut self) {
++		for (_, atlas) in &mut self.atlas_map {
++			atlas.text_atlas.trim();
++		}
++	}
++
+ 	fn atlas_for_pixel_scale(&mut self, pixel_scale: f32) -> anyhow::Result<SharedContextKey> {
+ 		for (key, atlas) in &self.atlas_map {
+ 			if (atlas.pixel_scale - pixel_scale).abs() < f32::EPSILON {

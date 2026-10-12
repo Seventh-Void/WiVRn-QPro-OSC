@@ -26,7 +26,7 @@ The overlay itself (WayVR) is never counted: WiVRn only exports the focused app.
 ## Requirements
 
 - `wivrn-server` from this fork, **v26.9-qpro.3 or later** (it writes `/dev/shm/wivrn-frametime`). Stock WiVRn doesn't export frame times; the panel then only shows the hardware stats.
-- WayVR 26.8 with `wayvrctl` (included in the `wayvr` package).
+- WayVR 26.8 with `wayvrctl` (included in the `wayvr` package). For the graphs, WayVR with [`wayvr-pkg/glyph-atlas-trim.patch`](wayvr-pkg/glyph-atlas-trim.patch) (see [Graphs](#graphs)).
 - Python 3 (standard library only) and a systemd user session.
 
 ## Install
@@ -43,6 +43,10 @@ systemctl --user enable --now wayvr-stats.path
 install -Dm644 watch.xml ~/.config/wayvr/theme/gui/watch.xml
 ```
 
+`watch.xml` is the white theme; `watch-purple.xml` is the same watch in purple (install it as `watch.xml` instead). Both are also attached to each [release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases), to download and drop into `~/.config/wayvr/theme/gui/watch.xml`.
+
+The clock shows your system's local time zone. The date follows your locale, and 12- or 24-hour time follows WayVR's `clock_12h` setting.
+
 Then restart WayVR (`wayvr --replace`, or close and start it). The stats start by themselves whenever WayVR starts, however it is launched.
 
 ### Already have a custom watch?
@@ -54,9 +58,33 @@ Copy two parts of `watch.xml` into yours instead of replacing it:
 
 `StatColumn` uses the `~color_text`, `~color_faded` and `~color_accent_40` theme variables and the `decorative_rect` macro from this watch; define them or swap in your own.
 
+## Graphs
+
+The frame time graphs are **off by default**. WayVR 26.8.0 never frees the atlas it keeps rendered images and text in, so every new graph image stays in it until WayVR exits with `Atlas full` (about 25 minutes of graphs). [`wayvr-pkg/glyph-atlas-trim.patch`](wayvr-pkg/glyph-atlas-trim.patch) fixes that: once per frame, after all overlays have finished rendering, it lets the atlas reuse space from images that are no longer drawn.
+
+On Arch, build and install the patched WayVR from [`wayvr-pkg`](wayvr-pkg) (the AUR `wayvr` 26.8.0 package plus the patch):
+
+```sh
+cd wayvr-pkg
+makepkg -si
+```
+
+Then turn the graphs on:
+
+```sh
+systemctl --user edit wayvr-stats.service
+```
+
+```ini
+[Service]
+Environment=WAYVR_STATS_GRAPHS=1
+```
+
+Without the patch, everything except the graphs works on stock WayVR.
+
 ## Colours
 
-The watch colours are the theme variables at the top of `watch.xml` (white by default). The graph colour is set separately:
+The watch colours are the theme variables at the top of `watch.xml` (white by default). The graph colour is set separately (in the same place as `WAYVR_STATS_GRAPHS`):
 
 ```sh
 systemctl --user edit wayvr-stats.service

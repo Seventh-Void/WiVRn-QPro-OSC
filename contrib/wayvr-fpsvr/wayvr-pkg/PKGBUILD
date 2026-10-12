@@ -1,0 +1,81 @@
+# WayVR 26.8.0 from the AUR package, plus glyph-atlas-trim.patch: WayVR never frees
+# its glyph atlas, so live-updating images (the frame time graphs) make it exit with
+# "Atlas full" after a while. Usage: makepkg -si   (from this folder)
+# Maintainer: galister <galister-dev at pm dot me>
+
+pkgname=wayvr
+pkgver=26.8.0
+pkgrel=1.1
+pkgdesc="Your way to enjoy VR on Linux! Access your Wayland/X11 desktop from SteamVR/Monado (OpenVR+OpenXR support)"
+url="https://github.com/wayvr-org/wayvr"
+arch=('x86_64')
+license=('GPL-3.0-or-later')
+depends=(glibc
+         libxkbcommon
+         libxkbcommon-x11
+         hicolor-icon-theme
+         libx11
+         libstdc++
+         libxcb
+         openssl
+         libxext
+         libxrandr
+         libgcc
+         dbus
+         libpipewire
+         libinput
+         alsa-lib
+         openxr
+         openvr
+         dav1d
+         xwayland-satellite)
+makedepends=(git
+             cargo
+             python3
+             cmake
+             clang
+             shaderc
+             vulkan-headers)
+replaces=("wlx-overlay-s")
+conflicts=("$pkgname")
+provides=("$pkgname")
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz"
+        "glyph-atlas-trim.patch")
+sha256sums=("8db6d52b8be462b132d05c119b526094bef9fbe4b8b605dec44e5979f41256ef"
+            "70efcbf16a6a6ac2eea2fda80ac3479bc6ddcfe2d2369447410b9ac1de474d25")
+options=(!lto)
+
+# Use debug
+export CARGO_PROFILE_RELEASE_DEBUG=2
+export CMAKE_POLICY_VERSION_MINIMUM=3.5
+export SHADERC_LIB_DIR=/usr/lib
+
+prepare() {
+  cd "$pkgname-$pkgver"
+  # Free unused glyphs each frame; without it WayVR dies with "Atlas full"
+  # once enough distinct images/glyphs were drawn (e.g. live graphs).
+  patch -Np1 -i "$srcdir/glyph-atlas-trim.patch"
+  cd "$pkgname"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+  cd "../${pkgname}ctl"
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "$pkgname-$pkgver"
+  cd "$pkgname"
+  cargo build --frozen --release --all-features
+  cd "../${pkgname}ctl"
+  cargo build --frozen --release --all-features
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/$pkgname"
+  install -Dm0755 -t "$pkgdir/usr/bin/" "target/release/${pkgname}ctl"
+  cd "$pkgname"
+  install -Dm0644 -t "$pkgdir/usr/share/applications/" "$pkgname.desktop"
+  install -Dm0644 -t "$pkgdir/usr/share/icons/hicolor/128x128/apps/" "$pkgname.png"
+  install -Dm0644 -t "$pkgdir/usr/share/icons/hicolor/scalable/apps/" "$pkgname.svg"
+}
+

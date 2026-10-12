@@ -25,6 +25,7 @@ PIDFILE = os.path.join(RUNDIR, "wayvr.pid")
 W, H = 150, 36                      # must match the fv_*_graph sprites in watch.xml; 1 px per frame
 GRAPH_HZ, LABEL_HZ = 15, 3
 COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # graph color, #RRGGBB
+GRAPHS = os.environ.get("WAYVR_STATS_GRAPHS") == "1"  # needs a patched WayVR, see README.md
 # Layout from app_pacer.cpp: u64 count, u32 period_us, u32 reserved, char app_name[64], frames
 HDR, NAME, FRAME, RING = struct.Struct("=QII"), 64, struct.Struct("=II"), 256
 FRAMES_AT = HDR.size + NAME
@@ -100,7 +101,7 @@ def run(pid):
     cpu_hist, gpu_hist = collections.deque(maxlen=W), collections.deque(maxlen=W)
     recent = collections.deque()  # (arrival time, cpu_us, gpu_us) over the last second
     app, app_start, app_frames = "", 0.0, 0
-    period_us, next_label, prev_label = 11111, 0.0, time.monotonic()
+    period_us, next_label = 11111, 0.0
     pt, pi = cpu_times()
 
     try:
@@ -127,11 +128,15 @@ def run(pid):
                     c, g = FRAME.unpack_from(shm, FRAMES_AT + (n % RING) * FRAME.size)
                     cpu_hist.append(c), gpu_hist.append(g), recent.append((now, c, g))
                     new += 1
+                app_frames += new
                 last = count
             while recent and recent[0][0] < now - 1:
                 recent.popleft()
 
-            if new:
+            # Graphs are opt-in: unpatched WayVR (26.8.0) never frees its glyph atlas,
+            # so every new graph image leaks until WayVR dies with "Atlas full".
+            # See wayvr-pkg/glyph-atlas-trim.patch / README.md.
+            if new and GRAPHS:
                 for key, hist in (("gpu", gpu_hist), ("cpu", cpu_hist)):
                     path = GRAPH.format(key, flip)
                     with open(path, "w") as f:
@@ -141,12 +146,7 @@ def run(pid):
 
             if now >= next_label:
                 next_label = now + 1 / LABEL_HZ
-                active = bool(app and recent)
-                if active:
-                    app_frames += sum(1 for r in recent if r[0] > prev_label)
-                prev_label = now
-
-                if active:
+                if app and recent:
                     n = len(recent)
                     label("fv_title", f"{app} - {duration(now - app_start)}")
                     label("fv_fps", f"FPS {n}" if now - app_start >= 1 else "FPS --")  # needs a full 1 s window

@@ -5,3 +5,5 @@ Description=WayVR watch stats panel (fpsVR-style)
 ExecStart=%h/.local/bin/wayvr-stats
 # Graph color (#RRGGBB); match it to the watch theme in watch.xml.
 #Environment=WAYVR_STATS_COLOR=#FFFFFF
+# Frame time graphs. Only with a WayVR that has wayvr-pkg/glyph-atlas-trim.patch (see README.md).
+#Environment=WAYVR_STATS_GRAPHS=1
