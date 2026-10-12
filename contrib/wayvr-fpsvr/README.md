@@ -83,7 +83,7 @@ VRCX has to be **running** for the world time to show: only then does it log wor
 
 ## Settings
 
-With the patched WayVR (`26.8.0-1.3`, see [Install](#install)): WayVR dashboard → **Settings** → **FPS stats**. Every change applies to the watch within 2 seconds, no restart needed, and is kept between sessions.
+With the patched WayVR (`26.8.0-1.4`, see [Install](#install)): WayVR dashboard → **Settings** → **FPS stats**. Every change applies to the watch within 2 seconds, no restart needed, and is kept between sessions.
 
 | Setting | |
 |---|---|
@@ -116,13 +116,13 @@ The rest of the watch colours are the theme variables at the top of `watch.xml`.
 ## Requirements
 
 - `wivrn-server` from this fork, **v26.9-qpro.3 or later** (it writes `/dev/shm/wivrn-frametime`). Stock WiVRn doesn't export frame times; the panel then only shows the hardware stats.
-- WayVR 26.8 with `wayvrctl`. Optional, for the Settings tab and a screen share crash fix: the patched WayVR **26.8.0-1.3** (see the [main README](../../README.md#install) for every distribution).
+- WayVR 26.8 with `wayvrctl`. Optional, for the Settings tab and a screen share crash fix: the patched WayVR **26.8.0-1.4** (see the [main README](../../README.md#install) for every distribution).
 - Python 3 (standard library only) and a systemd user session (every distribution in the main README has both).
 - Optional: VRCX, for the VRChat world time.
 
 ## Install
 
-Download `wayvr-watch-stats.tar.gz` from the [latest release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest) (it holds everything in this folder that you need), and on Arch-based distributions also the patched WayVR, `wayvr-26.8.0-1.3-x86_64.pkg.tar.zst` (others build it, see the [main README](../../README.md#part-2-wayvr-watch-stats-optional)).
+Download `wayvr-watch-stats.tar.gz` from the [latest release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest) (it holds everything in this folder that you need), and on Arch-based distributions also the patched WayVR, `wayvr-26.8.0-1.4-x86_64.pkg.tar.zst` (others build it, see the [main README](../../README.md#part-2-wayvr-watch-stats-optional)).
 
 ### 1. Run the installer
 
