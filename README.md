@@ -114,16 +114,14 @@ This fork is **two separate things**. Install Part 1 to use the fork; Part 2 is 
 
 ### What to download from the release
 
-From the [latest release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest), download only the rows you need:
+From the [latest release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest), download:
 
-| Part | Your distribution | Files to download |
+| You use | Part 1 | Part 2 (optional) |
 |---|---|---|
-| 1 | Arch Linux, CachyOS, EndeavourOS, Manjaro | `wivrn-server-26.9-4-x86_64.pkg.tar.zst`, `wivrn-dashboard-26.9-4-x86_64.pkg.tar.zst` |
-| 1 | Fedora, Debian, Ubuntu, Mint | nothing: you build it with the commands below |
-| 2 | Arch Linux, CachyOS, EndeavourOS, Manjaro | `wayvr-26.8.0-1.3-x86_64.pkg.tar.zst` |
-| 2 | Fedora, Debian, Ubuntu, Mint | nothing for WayVR: you build it with the commands below |
-| 2 | every distribution | `wayvr-stats`, `wayvr-stats.path`, `wayvr-stats.service`, `fpsvr-icons.tar.gz`, and **either** `watch.xml` / `watch-purple.xml` (replace your watch) **or** `fpsvr-stats.xml`, `fpsvr-button.xml`, `fpsvr-clock.xml` (add to your own watch) |
-| all | all | `SHA256SUMS`, to check the downloads: `sha256sum -c --ignore-missing SHA256SUMS` |
+| Arch Linux, CachyOS, EndeavourOS, Manjaro | `wivrn-server-26.9-4-x86_64.pkg.tar.zst` and `wivrn-dashboard-26.9-4-x86_64.pkg.tar.zst` | `wayvr-26.8.0-1.3-x86_64.pkg.tar.zst` and `wayvr-watch-stats.tar.gz` |
+| Fedora, Debian, Ubuntu, Mint | nothing: you build it with the commands below | `wayvr-watch-stats.tar.gz` (WayVR itself you build with the commands below) |
+
+`SHA256SUMS` is optional: it lets you check the downloads with `sha256sum -c --ignore-missing SHA256SUMS`.
 
 The headset app is the stock **WiVRn 26.9** app (Meta Store, or the dashboard's install wizard): nothing to download from here.
 
@@ -140,7 +138,6 @@ Pick your distribution.
 With the two downloaded packages, in the folder you downloaded them to:
 
 ```sh
-sha256sum -c --ignore-missing SHA256SUMS
 sudo pacman -U wivrn-server-26.9-4-x86_64.pkg.tar.zst wivrn-dashboard-26.9-4-x86_64.pkg.tar.zst
 ```
 
@@ -373,20 +370,14 @@ cd ~
 
 ### Step 2: the stats script and the watch
 
-Every distribution, in the folder with the release downloads (or `~/WiVRn-QPro-OSC/contrib/wayvr-fpsvr`). Nothing here needs root:
+Every distribution, in the folder with the downloaded `wayvr-watch-stats.tar.gz`. Nothing here needs root:
 
 ```sh
-[ -f fpsvr-icons.tar.gz ] && tar xf fpsvr-icons.tar.gz   # release downloads: unpacks fpsvr/
-install -Dm755 wayvr-stats ~/.local/bin/wayvr-stats
-install -Dm644 -t ~/.config/systemd/user wayvr-stats.path wayvr-stats.service
-install -Dm644 -t ~/.config/wayvr/theme/fpsvr fpsvr/*.svg
-systemctl --user daemon-reload
-systemctl --user enable --now wayvr-stats.path
-[ -f ~/.config/wayvr/theme/gui/watch.xml ] && cp ~/.config/wayvr/theme/gui/watch.xml ~/.config/wayvr/theme/gui/watch.xml.bak
-install -Dm644 watch.xml ~/.config/wayvr/theme/gui/watch.xml   # or watch-purple.xml
+tar xf wayvr-watch-stats.tar.gz
+./wayvr-watch-stats/install.sh          # white watch, or: ./wayvr-watch-stats/install.sh purple
 ```
 
-This replaces your watch (the old one is kept as `watch.xml.bak`). To keep your own watch and add the stats to it instead, use the add-on files: [contrib/wayvr-fpsvr → option B](contrib/wayvr-fpsvr#2-the-watch).
+This replaces your WayVR watch with one that has the stats (your old watch is backed up next to it, as `watch.xml.<date>.bak`). To keep your own watch, run `./wayvr-watch-stats/install.sh keep` instead and add the stats to it by hand: [contrib/wayvr-fpsvr → option B](contrib/wayvr-fpsvr#2-the-watch). From a clone, the same script is `~/WiVRn-QPro-OSC/contrib/wayvr-fpsvr/install.sh`.
 
 ### Step 3: start it
 

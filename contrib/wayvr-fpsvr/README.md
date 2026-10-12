@@ -101,50 +101,28 @@ The rest of the watch colours are the theme variables at the top of `watch.xml`.
 
 ## Install
 
-The files are in this folder, and attached to each [release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest). From the release, download:
+Download `wayvr-watch-stats.tar.gz` from the [latest release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/releases/latest) (it holds everything in this folder that you need), and on Arch-based distributions also the patched WayVR, `wayvr-26.8.0-1.3-x86_64.pkg.tar.zst` (others build it, see the [main README](../../README.md#part-2-wayvr-watch-stats-optional)).
 
-| File | Needed for |
-|---|---|
-| `wayvr-stats`, `wayvr-stats.path`, `wayvr-stats.service` | always |
-| `fpsvr-icons.tar.gz` | always (stats button and empty graph icons) |
-| `watch.xml` or `watch-purple.xml` | option A: replace your watch |
-| `fpsvr-stats.xml`, `fpsvr-button.xml`, `fpsvr-clock.xml` | option B: add the stats to your own watch |
-| `wayvr-26.8.0-1.3-x86_64.pkg.tar.zst` | Arch-based only: the patched WayVR (others build it, see the main README) |
+### 1. Run the installer
 
-### 1. The stats script and icons
-
-In the folder with the downloaded files (or this folder, in a clone of the repository):
+In the folder with the download (nothing here needs root):
 
 ```sh
-cd ~/WiVRn-QPro-OSC/contrib/wayvr-fpsvr   # or the folder with the release downloads
-[ -f fpsvr-icons.tar.gz ] && tar xf fpsvr-icons.tar.gz   # release downloads only: unpacks fpsvr/
-install -Dm755 wayvr-stats ~/.local/bin/wayvr-stats
-install -Dm644 -t ~/.config/systemd/user wayvr-stats.path wayvr-stats.service
-install -Dm644 -t ~/.config/wayvr/theme/fpsvr fpsvr/*.svg
-systemctl --user daemon-reload
-systemctl --user enable --now wayvr-stats.path
+tar xf wayvr-watch-stats.tar.gz
+./wayvr-watch-stats/install.sh          # white watch
+./wayvr-watch-stats/install.sh purple   # or the purple watch
+./wayvr-watch-stats/install.sh keep     # or keep your own watch (see option B below)
 ```
 
-No root needed: everything goes into your home folder. The stats start by themselves whenever WayVR starts, however it is launched, and follow WayVR across restarts and crashes (the service also restarts the script if it fails).
+From a clone of the repository, run `./install.sh` in this folder instead.
+
+It copies `wayvr-stats` to `~/.local/bin`, the systemd user units and the icons into `~/.config`, and turns on `wayvr-stats.path`. The stats then start by themselves whenever WayVR starts, however it is launched, and follow WayVR across restarts and crashes (the service also restarts the script if it fails).
 
 ### 2. The watch
 
-Pick one.
+**A. Replace your watch** (`install.sh` or `install.sh purple`): the installer puts in the complete white or purple watch. Your old `watch.xml` is kept next to it as `watch.xml.<date>.bak`.
 
-**A. Replace your watch** with a complete one: `watch.xml` (white) or `watch-purple.xml` (purple). Back up your own first:
-
-```sh
-[ -f ~/.config/wayvr/theme/gui/watch.xml ] && cp ~/.config/wayvr/theme/gui/watch.xml ~/.config/wayvr/theme/gui/watch.xml.bak
-install -Dm644 watch.xml ~/.config/wayvr/theme/gui/watch.xml   # or watch-purple.xml
-```
-
-**B. Keep your watch and add the stats to it.** Copy the add-ons next to your `watch.xml`:
-
-```sh
-install -Dm644 -t ~/.config/wayvr/theme/gui fpsvr-stats.xml fpsvr-button.xml fpsvr-clock.xml
-```
-
-then add one line for each to your `~/.config/wayvr/theme/gui/watch.xml`, inside `<elements>`:
+**B. Keep your watch and add the stats to it** (`install.sh keep`): the installer copies the add-ons `fpsvr-stats.xml`, `fpsvr-button.xml` and `fpsvr-clock.xml` next to your `watch.xml`. Then add one line for each to your `~/.config/wayvr/theme/gui/watch.xml`, inside `<elements>`:
 
 ```xml
 <include src="fpsvr-stats.xml" />    <!-- the stats panel, e.g. right below the clock box -->
