@@ -48,5 +48,5 @@ fi
 systemctl --user daemon-reload
 systemctl --user enable --now wayvr-stats.path
 systemctl --user try-restart wayvr-stats.service
-command -v wayvr >/dev/null || echo "Note: wayvr is not installed yet. Install the patched WayVR too (see the README)."
+command -v wayvr >/dev/null || echo "Note: wayvr is not installed yet. Install WayVR too (see the README)."
 echo "Done. Restart WayVR (wayvr --replace) to load the watch."
