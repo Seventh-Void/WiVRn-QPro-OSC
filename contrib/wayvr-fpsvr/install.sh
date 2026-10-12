@@ -13,6 +13,11 @@ case "${1:-white}" in
 	*) echo "usage: $0 [white|purple|keep]" >&2; exit 1 ;;
 esac
 
+if ! command -v python3 >/dev/null; then
+	echo "The stats need Python 3. Install it first (Arch: sudo pacman -S python), then run this again." >&2
+	exit 1
+fi
+
 units=~/.config/systemd/user
 gui=~/.config/wayvr/theme/gui
 install -Dm755 wayvr-stats ~/.local/bin/wayvr-stats
