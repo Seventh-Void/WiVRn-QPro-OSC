@@ -1,0 +1,29 @@
+<!-- Game and world time for an existing WayVR watch (fpsVR-style stats add-on).
+     Put this file next to your watch.xml (~/.config/wayvr/theme/gui/) and add
+         <include src="fpsvr-clock.xml" />
+     inside your watch.xml where the lines should go, e.g. right under the clock's date row.
+     Needs wayvr-stats running (see README.md). The world time is VRChat only and needs VRCX. -->
+<layout>
+  <theme>
+    <var key="fv_clock_size" value="16" />
+    <var key="fv_color_accent" value="#FFFFFF" />
+    <var key="fv_color_faded" value="#C8C8C8" />
+  </theme>
+  <elements>
+    <div flex_direction="column" align_items="center">
+      <!-- Time in the current VR game, set by wayvr-stats (keeps counting while the stats are hidden) -->
+      <label id="fv_session"
+             text="No VR game"
+             color="~fv_color_accent"
+             size="~fv_clock_size"
+             weight="bold"
+             align="center" />
+      <!-- VRChat only: time in the current world, from VRCX's database -->
+      <label id="fv_world"
+             text=""
+             color="~fv_color_faded"
+             size="~fv_clock_size"
+             align="center" />
+    </div>
+  </elements>
+</layout>

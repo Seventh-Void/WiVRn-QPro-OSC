@@ -11,8 +11,11 @@ Started by wayvr-stats.path whenever WayVR (re)writes its pid file; exits once
 that WayVR is gone.
 """
 import collections
+import contextlib
+import datetime
 import glob
 import mmap
+import sqlite3
 import os
 import struct
 import subprocess
@@ -22,6 +25,8 @@ SHM = "/dev/shm/wivrn-frametime"
 RUNDIR = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
 GRAPH = os.path.join(RUNDIR, "wayvr-stats-{}-{}.svg")  # alternates 0/1 so WayVR never reads a half-written file
 PIDFILE = os.path.join(RUNDIR, "wayvr.pid")
+VRCX_DB = os.path.expanduser("~/.config/VRCX/VRCX.sqlite3")  # optional: VRChat world time
+HIDDEN = os.path.join(RUNDIR, "wayvr-stats.hidden")  # made/removed by the watch's Hide/Show buttons
 W, H = 150, 36                      # must match the fv_*_graph sprites in watch.xml; 1 px per frame
 GRAPH_HZ, LABEL_HZ = 15, 3
 COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # graph color, #RRGGBB
@@ -73,13 +78,58 @@ def quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
 
 
+# fpsVR-style bar colors per frame: within budget, up to 25 % over, worse
+GOOD, LATE, BAD = "#22C55E", "#F59E0B", "#EF4444"
+TEXT = os.environ.get("WAYVR_STATS_TEXT", "#FFFFFF")  # labels that are fine; match the watch's text color
+
+
+def ms_color(us, period_us):
+    return GOOD if us <= period_us else LATE if us <= period_us * 5 // 4 else BAD
+
+
+def fps_color(fps, period_us):
+    target = round(1e6 / period_us)  # 11111 us -> 90 fps
+    return GOOD if fps >= target * 0.9 else LATE if fps >= target / 2 else BAD
+
+
+def label_color(c):
+    return TEXT if c == GOOD else c  # labels only stand out when orange or red
+
+
 def svg(values, period_us):
+    """One 1 px bar per frame, colored by its frame time against the frame budget."""
     top = 3 * period_us // 2  # dashed line = frame budget, at 2/3 height
     x0 = W - len(values)
-    pts = " ".join(f"{x0 + i},{H - min(v, top) * H // top}" for i, v in enumerate(values))
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}">'
-            f'<polygon points="{x0},{H} {pts} {W - 1},{H}" fill="{COLOR}55" stroke="{COLOR}" stroke-width="1"/>'
+    bars = {GOOD: [], LATE: [], BAD: []}
+    for i, v in enumerate(values):
+        bars[ms_color(v, period_us)].append(f"M{x0 + i}.5 {H}V{H - min(v, top) * H // top}")
+    paths = "".join(f'<path d="{"".join(d)}" stroke="{c}"/>' for c, d in bars.items() if d)
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{H}">{paths}'
             f'<path d="M0 {H - period_us * H // top} H{W}" stroke="{COLOR}88" stroke-dasharray="3 3"/></svg>')
+
+
+def vrcx_running():
+    for comm in glob.glob("/proc/[0-9]*/comm"):
+        try:
+            if open(comm).read().strip() == "VRCX":
+                return True
+        except OSError:  # process exited while scanning
+            pass
+    return False
+
+
+def vrcx_world():
+    """(world name, unix join time) of VRCX's newest location entry, or None without VRCX."""
+    if not os.path.exists(VRCX_DB):  # no VRCX: world time stays off (turns on once VRCX is installed)
+        return None
+    if not vrcx_running():  # VRCX closed: it isn't logging world changes, so its newest world may be stale
+        return None
+    try:
+        with contextlib.closing(sqlite3.connect(f"file:{VRCX_DB}?mode=ro", uri=True, timeout=0.2)) as db:
+            row = db.execute("SELECT world_name, created_at FROM gamelog_location ORDER BY id DESC LIMIT 1").fetchone()
+        return row[0], datetime.datetime.fromisoformat(row[1]).timestamp()
+    except (sqlite3.Error, TypeError, ValueError):
+        return None
 
 
 def duration(s):
@@ -91,18 +141,59 @@ def run(pid):
     ctl = subprocess.Popen(["wayvrctl", "batch", "--fail-fast"], stdin=subprocess.PIPE,
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True)
     shown = {}  # element id -> text currently on the watch
+    colors = {}  # element id -> color currently on the watch
 
     def label(wid, text):
         if shown.get(wid) != text:
             shown[wid] = text
             ctl.stdin.write(f"panel-modify watch {wid} set-text -- {quote(text)}\n")
 
+    def color(wid, hex_color):
+        if colors.get(wid) != hex_color:
+            colors[wid] = hex_color
+            ctl.stdin.write(f"panel-modify watch {wid} set-color '{hex_color}'\n")
+
     shm, last, flip = None, 0, 0
     cpu_hist, gpu_hist = collections.deque(maxlen=W), collections.deque(maxlen=W)
     recent = collections.deque()  # (arrival time, cpu_us, gpu_us) over the last second
     app, app_start, app_frames = "", 0.0, 0
-    period_us, next_label = 11111, 0.0
+    period_us, next_label, hidden, fps_from = 11111, 0.0, False, 0.0  # fps_from: start of a gap-free 1 s window
+    seen, alive_at = -1, -1e9  # frame counter last seen, and when it last moved
+    world, world_at = None, 0.0  # cached vrcx_world() and when it was read
     pt, pi = cpu_times()
+
+    def header(now):
+        """Read the shm header only: focused app and frame counter. Returns the counter."""
+        nonlocal app, app_start, app_frames, fps_from, last, period_us, seen, alive_at
+        count, period_us, _ = HDR.unpack_from(shm)
+        period_us = period_us or 11111
+        name = shm[HDR.size:FRAMES_AT].split(b"\0", 1)[0].decode(errors="replace")
+        name = name if len(name) <= 30 else name[:29] + "…"  # fit the watch width
+        if name != app:  # new focused app: restart session stats
+            app, app_start, app_frames, fps_from = name, now, 0, now
+            cpu_hist.clear(), gpu_hist.clear()
+        if count < last:  # wivrn-server restarted
+            last = count
+        if count != seen:
+            seen, alive_at = count, now
+        return count
+
+    def session(now):
+        nonlocal world, world_at
+        # under the clock, so it stays visible (and counting) while the stats panel is hidden
+        in_game = app and now - alive_at < 5
+        name = app if len(app) <= 16 else app[:15] + "…"  # the clock face is narrower than the panel
+        label("fv_session", f"{name} - {duration(now - app_start)}" if in_game else "No VR game")
+        if in_game and "VRChat" in app:
+            if now - world_at >= 5:
+                world, world_at = vrcx_world(), now
+        else:
+            world = None
+        if world:
+            wname = world[0] if len(world[0]) <= 16 else world[0][:15] + "…"
+            label("fv_world", f"{wname} - {duration(time.time() - world[1])}")
+        else:
+            label("fv_world", "")
 
     try:
         while os.path.exists(f"/proc/{pid}") and ctl.poll() is None:
@@ -113,17 +204,30 @@ def run(pid):
                     shm = mmap.mmap(f.fileno(), 0, prot=mmap.PROT_READ)
                 last = HDR.unpack_from(shm)[0]  # start from now, skip old frames
 
+            if os.path.exists(HIDDEN):  # panel hidden: only the game time under the clock keeps going
+                hidden = True
+                if shm is not None:
+                    prev = app
+                    count = header(now)
+                    if app != prev:  # don't count the old app's frames in the new one's Avg
+                        last = count
+                session(now)
+                label("fv_title", app or "No VR app")  # in the header, which stays visible
+                ctl.stdin.flush()
+                time.sleep(0.5)
+                continue
+            if hidden:  # shown again: drop the stale graphs, but keep the missed frames in Avg
+                hidden = False
+                if shm is not None:
+                    count = header(now)
+                    app_frames += max(count - last, 0)
+                    last = count
+                cpu_hist.clear(), gpu_hist.clear(), recent.clear()
+                pt, pi, fps_from = *cpu_times(), now
+
             new = 0
             if shm is not None:
-                count, period_us, _ = HDR.unpack_from(shm)
-                period_us = period_us or 11111
-                name = shm[HDR.size:FRAMES_AT].split(b"\0", 1)[0].decode(errors="replace")
-                name = name if len(name) <= 30 else name[:29] + "…"  # fit the watch width
-                if name != app:  # new focused app: restart session stats
-                    app, app_start, app_frames = name, now, 0
-                    cpu_hist.clear(), gpu_hist.clear()
-                if count < last:  # wivrn-server restarted
-                    last = count
+                count = header(now)
                 for n in range(max(last, count - RING), count):
                     c, g = FRAME.unpack_from(shm, FRAMES_AT + (n % RING) * FRAME.size)
                     cpu_hist.append(c), gpu_hist.append(g), recent.append((now, c, g))
@@ -146,18 +250,26 @@ def run(pid):
 
             if now >= next_label:
                 next_label = now + 1 / LABEL_HZ
+                session(now)
                 if app and recent:
                     n = len(recent)
-                    label("fv_title", f"{app} - {duration(now - app_start)}")
-                    label("fv_fps", f"FPS {n}" if now - app_start >= 1 else "FPS --")  # needs a full 1 s window
-                    label("fv_avg_fps", f"Avg {app_frames / max(now - app_start, 1e-3):.1f}")
-                    label("fv_gpu_ms", f"{sum(r[2] for r in recent) / n / 1000:.1f} ms")
-                    label("fv_cpu_ms", f"{sum(r[1] for r in recent) / n / 1000:.1f} ms")
+                    avg = app_frames / max(now - app_start, 1e-3)
+                    gpu_us, cpu_us = sum(r[2] for r in recent) / n, sum(r[1] for r in recent) / n
+                    label("fv_title", app)
+                    if now - fps_from >= 1:  # needs a full 1 s window
+                        label("fv_fps", f"FPS {n}"), color("fv_fps", label_color(fps_color(n, period_us)))
+                    else:
+                        label("fv_fps", "FPS --"), color("fv_fps", TEXT)
+                    label("fv_avg_fps", f"Avg {avg:.1f}"), color("fv_avg_fps", label_color(fps_color(avg, period_us)))
+                    label("fv_gpu_ms", f"{gpu_us / 1000:.1f} ms"), color("fv_gpu_ms", label_color(ms_color(gpu_us, period_us)))
+                    label("fv_cpu_ms", f"{cpu_us / 1000:.1f} ms"), color("fv_cpu_ms", label_color(ms_color(cpu_us, period_us)))
                 else:
                     label("fv_title", app or "No VR app")
                     label("fv_fps", "FPS --")
                     label("fv_gpu_ms", "-- ms")
                     label("fv_cpu_ms", "-- ms")
+                    for wid in ("fv_fps", "fv_avg_fps", "fv_gpu_ms", "fv_cpu_ms"):
+                        color(wid, TEXT)
 
                 t, i = cpu_times()
                 cpu_load, pt, pi = 100 * ((t - pt) - (i - pi)) // max(t - pt, 1), t, i
@@ -179,7 +291,14 @@ def run(pid):
 
 
 # wayvrctl exits if WayVR's IPC isn't up yet or goes away; retry while a
-# WayVR (incl. a replacement instance) is running.
+# WayVR (incl. a replacement instance after a restart or crash) is running.
+seen = None
 while pid := wayvr_pid():
+    if pid != seen:  # a new WayVR starts with the panel shown, even if the old one had it hidden
+        seen = pid
+        try:
+            os.remove(HIDDEN)
+        except FileNotFoundError:
+            pass
     run(pid)
     time.sleep(2)

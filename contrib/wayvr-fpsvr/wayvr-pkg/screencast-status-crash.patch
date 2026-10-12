@@ -1,0 +1,59 @@
+--- a/wayvr/src/overlays/screen/pw.rs	2026-10-12 13:10:54.022438096 +0100
++++ b/wayvr/src/overlays/screen/pw.rs	2026-10-12 13:10:54.023311953 +0100
+@@ -32,7 +32,7 @@
+     subsystem::dbus::DbusConnector,
+     windowing::{
+         OverlaySelector,
+-        backend::{DummyBackend, OverlayBackend},
++        backend::OverlayBackend,
+     },
+ };
+ 
+@@ -411,27 +411,26 @@
+         OverlaySelector::Name(name.clone()),
+         Box::new({
+             move |_app, owc| {
+-                let backend =
+-                    std::mem::replace(&mut owc.backend, Box::new(DummyBackend {})) as Box<dyn Any>;
+-                let mut backend = backend
+-                    .downcast::<ScreenCastBackend>()
+-                    .expect("Wrong type to unwrap");
+-                {
+-                    let Ok(mut label) = backend
+-                        .panel
+-                        .parser_state
+-                        .fetch_widget_as::<WidgetLabel>(&backend.panel.layout.state, "status")
+-                        .log_err("element with id=\"status\" not found in screencast.xml!")
+-                    else {
+-                        return;
+-                    };
+-                    let mut common = CallbackDataCommon {
+-                        state: &backend.panel.layout.state,
+-                        alterables: &mut backend.panel.layout.alterables,
+-                    };
+-                    label.set_text(&mut common, Translation::from_translation_key(message));
+-                }
+-                let _ = std::mem::replace(&mut owc.backend, backend);
++                // The overlay may already be the real screen by now (e.g. a saved PipeWire
++                // token connected at once): then there is no status label left to update.
++                let Some(backend) =
++                    (owc.backend.as_mut() as &mut dyn Any).downcast_mut::<ScreenCastBackend>()
++                else {
++                    return;
++                };
++                let Ok(mut label) = backend
++                    .panel
++                    .parser_state
++                    .fetch_widget_as::<WidgetLabel>(&backend.panel.layout.state, "status")
++                    .log_err("element with id=\"status\" not found in screencast.xml!")
++                else {
++                    return;
++                };
++                let mut common = CallbackDataCommon {
++                    state: &backend.panel.layout.state,
++                    alterables: &mut backend.panel.layout.alterables,
++                };
++                label.set_text(&mut common, Translation::from_translation_key(message));
+             }
+         }),
+     )));

@@ -1,0 +1,86 @@
+<!-- fpsVR-style stats panel for an existing WayVR watch.
+     Put this file next to your watch.xml (~/.config/wayvr/theme/gui/) and add
+         <include src="fpsvr-stats.xml" />
+     inside <elements> of your watch.xml, where the panel should go (e.g. below the button row).
+     Needs wayvr-stats running (see README.md). -->
+<layout>
+  <theme>
+    <!-- Colors of this add-on only (white). Change them to match your watch. -->
+    <var key="fv_color_bg" value="#101010" />
+    <var key="fv_color_text" value="#FFFFFF" />
+    <var key="fv_color_accent" value="#FFFFFF" />
+    <var key="fv_color_accent_translucent" value="#FFFFFF99" />
+    <var key="fv_color_accent_40" value="#FFFFFF66" />
+    <var key="fv_color_accent_10" value="#FFFFFF1A" />
+    <var key="fv_color_faded" value="#C8C8C8" />
+  </theme>
+
+  <macro name="fv_rect"
+         padding="8" color="~fv_color_bg"
+         border="2" border_color="~fv_color_accent" round="8" />
+
+  <macro name="fv_button"
+         padding="8"
+         border_color="~fv_color_accent_translucent"
+         border="2"
+         round="8"
+         color="~fv_color_accent_40"
+         color2="~fv_color_accent_10"
+         gradient="vertical"
+         align_items="center"
+         justify_content="center" />
+
+  <!-- fpsVR-style column: header with frame time, graph, temp/load, memory -->
+  <template name="FvStatColumn">
+    <div flex_direction="column" gap="2">
+      <div justify_content="space_between" width="100%">
+        <label text="${name}" size="14" color="~fv_color_faded" weight="bold" />
+        <label id="fv_${key}_ms" text="-- ms" size="14" color="~fv_color_text" weight="bold" />
+      </div>
+      <rectangle border="1" border_color="~fv_color_accent_40" round="4">
+        <sprite id="fv_${key}_graph" width="150" height="36" />
+      </rectangle>
+      <label id="fv_${key}" text="--" size="13" color="~fv_color_text" />
+      <label id="${extra}" text="--" size="13" color="~fv_color_faded" />
+    </div>
+  </template>
+
+  <elements>
+    <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file).
+         fv_area keeps the panel's full size (measured: 356 x 168 px) so hiding the
+         panel never resizes the watch; while hidden only the Show button is drawn.
+         The ShellExec flag file pauses wayvr-stats while the stats are hidden. -->
+    <div id="fv_area" flex_direction="column" min_width="356" min_height="168">
+      <rectangle id="fv_panel" macro="fv_rect" flex_direction="column" gap="4">
+        <div justify_content="space_between" align_items="center" width="100%" gap="8">
+          <Button macro="fv_button" padding="6" gap="6"
+                  _press="::ElementSetDisplay fv_panel none"
+                  _press2="::ElementSetDisplay fv_show_btn flex"
+                  _press3="::ShellExec touch $XDG_RUNTIME_DIR/wayvr-stats.hidden">
+            <sprite width="36" height="36" color="~fv_color_text" src_builtin="keyboard/up.svg" />
+            <label text="Hide stats" size="16" color="~fv_color_text" weight="bold" />
+          </Button>
+          <label id="fv_title" text="No VR app" size="16" color="~fv_color_accent" weight="bold" />
+        </div>
+        <!-- FPS over the GPU column, Avg over the CPU column (fpsVR layout) -->
+        <div gap="8">
+          <div width="150"><label id="fv_fps" text="FPS --" size="14" color="~fv_color_text" weight="bold" /></div>
+          <div width="150"><label id="fv_avg_fps" text="Avg --" size="14" color="~fv_color_text" weight="bold" /></div>
+        </div>
+        <div gap="8">
+          <FvStatColumn name="GPU" key="gpu" extra="fv_vram" />
+          <FvStatColumn name="CPU" key="cpu" extra="fv_ram" />
+        </div>
+      </rectangle>
+      <div id="fv_show_btn" display="none">
+        <Button macro="fv_button" padding="6" gap="6"
+                _press="::ElementSetDisplay fv_panel flex"
+                _press2="::ElementSetDisplay fv_show_btn none"
+                _press3="::ShellExec rm -f $XDG_RUNTIME_DIR/wayvr-stats.hidden">
+          <sprite width="36" height="36" color="~fv_color_text" src_builtin="keyboard/down.svg" />
+          <label text="Show stats" size="16" color="~fv_color_text" weight="bold" />
+        </Button>
+      </div>
+    </div>
+  </elements>
+</layout>

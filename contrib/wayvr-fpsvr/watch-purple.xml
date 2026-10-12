@@ -139,6 +139,19 @@
                  size="~clock0_date_size"
                  weight="bold" />
           </div>
+          <!-- Time in the current VR game, set by wayvr-stats (keeps counting while the stats are hidden) -->
+          <label id="fv_session"
+                 text="No VR game"
+                 color="~color_accent"
+                 size="~clock0_date_size"
+                 weight="bold"
+                 align="center" />
+          <!-- VRChat only: time in the current world, from VRCX's database -->
+          <label id="fv_world"
+                 text=""
+                 color="~color_faded"
+                 size="~clock0_date_size"
+                 align="center" />
         </div>
       </div>
     </template>
@@ -191,7 +204,7 @@
                      justify_content="space_evenly">
 
             <!-- Clock -->
-            <div id="clock_root">
+            <div id="clock_root" align_items="center">
               <Clock />
             </div>
 
@@ -277,18 +290,42 @@
 
                     </div>
 
-                  <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file) -->
-                  <rectangle macro="decorative_rect" flex_direction="column" gap="4">
-                    <label id="fv_title" text="No VR app" size="14" color="~color_accent" weight="bold" />
-                    <div gap="8">
-                      <StatColumn name="GPU" key="gpu" extra="fv_vram" />
-                      <StatColumn name="CPU" key="cpu" extra="fv_ram" />
+                  <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file).
+                       fv_area keeps the panel's full size (measured: 356 x 168 px) so hiding the
+                       panel never resizes the watch; while hidden only the Show button is drawn.
+                       The ShellExec flag file pauses wayvr-stats while the stats are hidden. -->
+                  <div id="fv_area" flex_direction="column" min_width="356" min_height="168">
+                    <rectangle id="fv_panel" macro="decorative_rect" flex_direction="column" gap="4">
+                      <div justify_content="space_between" align_items="center" width="100%" gap="8">
+                        <Button macro="button_style" padding="6" gap="6"
+                                _press="::ElementSetDisplay fv_panel none"
+                                _press2="::ElementSetDisplay fv_show_btn flex"
+                                _press3="::ShellExec touch $XDG_RUNTIME_DIR/wayvr-stats.hidden">
+                          <sprite width="36" height="36" color="~color_text" src_builtin="keyboard/up.svg" />
+                          <label text="Hide stats" size="16" color="~color_text" weight="bold" />
+                        </Button>
+                        <label id="fv_title" text="No VR app" size="16" color="~color_accent" weight="bold" />
+                      </div>
+                      <!-- FPS over the GPU column, Avg over the CPU column (fpsVR layout) -->
+                      <div gap="8">
+                        <div width="150"><label id="fv_fps" text="FPS --" size="14" color="~color_text" weight="bold" /></div>
+                        <div width="150"><label id="fv_avg_fps" text="Avg --" size="14" color="~color_text" weight="bold" /></div>
+                      </div>
+                      <div gap="8">
+                        <StatColumn name="GPU" key="gpu" extra="fv_vram" />
+                        <StatColumn name="CPU" key="cpu" extra="fv_ram" />
+                      </div>
+                    </rectangle>
+                    <div id="fv_show_btn" display="none">
+                      <Button macro="button_style" padding="6" gap="6"
+                              _press="::ElementSetDisplay fv_panel flex"
+                              _press2="::ElementSetDisplay fv_show_btn none"
+                              _press3="::ShellExec rm -f $XDG_RUNTIME_DIR/wayvr-stats.hidden">
+                        <sprite width="36" height="36" color="~color_text" src_builtin="keyboard/down.svg" />
+                        <label text="Show stats" size="16" color="~color_text" weight="bold" />
+                      </Button>
                     </div>
-                    <div gap="16">
-                      <label id="fv_fps" text="FPS --" size="13" color="~color_text" weight="bold" />
-                      <label id="fv_avg_fps" text="Avg --" size="13" color="~color_faded" />
-                    </div>
-                  </rectangle>
+                  </div>
                   </div>
                 </div>
               </elements>
