@@ -445,6 +445,10 @@ def run(pid):
         pass
     finally:
         ctl.kill()
+        try:
+            ctl.stdin.close()  # else the unflushed buffer raises again when Python frees it
+        except BrokenPipeError:
+            pass
 
 
 # wayvrctl exits if WayVR's IPC isn't up yet or goes away; retry while a
