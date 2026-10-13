@@ -1,4 +1,4 @@
-<h1 align="center"> WiVRn-QPro-OSC </h1>
+<p align="center"><img src="images/fork/header.jpg" alt="WiVRn-QPro-OSC: Quest Pro face tracking, straight to VRChat and Resonite"></p>
 
 <p align="center"><b>A fork of <a href="https://github.com/WiVRn/WiVRn">WiVRn</a> that sends Quest Pro face, eye, tongue and camera pupil tracking straight to VRChat and Resonite over OSC.</b></p>
 
