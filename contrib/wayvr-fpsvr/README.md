@@ -7,12 +7,12 @@ A frame timing panel for [WayVR](https://github.com/wlx-team/wayvr)'s wrist watc
   <img src="watch-hidden.png" alt="The same watch with the stats hidden" width="380">
 </p>
 <p align="center">
-  <img src="fpsvr-graphs.gif" alt="Frame time graphs going from good to bad and back while VRChat loads a world" width="380">
+  <img src="fpsvr-graphs.gif" alt="Frame time graphs going from good to bad and back during a VRChat stutter" width="380">
   <img src="watch-minimal.png" alt="The watch in Minimal mode: FPS and Avg FPS only" width="380">
 </p>
 <p align="center"><img src="settings-tab.png" alt="The FPS stats tab in WayVR's Settings" width="600"></p>
 
-*The watch images are from a real VRChat session on a Quest Pro with this fork, rendered with WayVR's `uidev` previewer (the dark background stands in for the game behind the watch; battery levels are left empty by the previewer). Top: the stats panel, and the same watch with the stats hidden. The GIF replays 24 s of recorded VRChat frames, world loading included, through the panel's own graph and colour code: FPS and frame times turn orange and red while the frames are late, and back to white once it recovers (the temperature, load and memory lines in it are from the moment of the screenshot). Next to it: Minimal mode. Bottom: the FPS stats tab of the patched WayVR's Settings.*
+*The watch images are from a real VRChat session on a Quest Pro with this fork, rendered with WayVR's `uidev` previewer (the dark background stands in for the game behind the watch; battery levels are left empty by the previewer). Top: the stats panel, and the same watch with the stats hidden. The GIF replays 24 s of recorded VRChat frames, a stutter included, through the panel's own graph and colour code: FPS and frame times turn orange and red while the frames are late, and back to white once it recovers (temperature, load and memory were recorded with them, once a second). Next to it: Minimal mode. Bottom: the FPS stats tab of the patched WayVR's Settings.*
 
 ## How it works
 
