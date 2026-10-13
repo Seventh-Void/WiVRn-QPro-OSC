@@ -48,7 +48,7 @@ STATE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.loc
 CRASH = re.compile(r"panicked|Atlas full")
 KEEP_CRASHES = 10
 VRCX_DB = os.path.join(CONFIG_HOME, "VRCX", "VRCX.sqlite3")  # optional: VRChat world time
-W, H = 150, 36                      # must match the fv_*_graph images in watch.xml; 1 px per frame
+W, H = 180, 32                      # must match the fv_*_graph images in watch.xml; 1 px per frame
 GRAPH_HZ, LABEL_HZ = 15, 3
 COLOR = os.environ.get("WAYVR_STATS_COLOR", "#FFFFFF")  # dashed budget line, #RRGGBB
 TEXT = os.environ.get("WAYVR_STATS_TEXT", "#FFFFFF")  # labels that are fine; match the watch's text color
@@ -446,10 +446,10 @@ def run(pid):
                 if show["gpu"] or show["vram"]:
                     temp, load, used, total = GPU() if GPU else (None, None, None, None)
                     label("fv_gpu", f"{'--' if temp is None else temp}°C  {'--' if load is None else load}%")
-                    label("fv_vram", f"VRAM {used / GIB:.1f}/{total / GIB:.1f} GB" if used is not None and total else "VRAM --")
+                    label("fv_vram", f"{used / GIB:.1f}/{total / GIB:.1f} GB" if used is not None and total else "--")
                 if show["ram"]:
                     used, total = ram_gib()
-                    label("fv_ram", f"RAM {used:.1f}/{total:.1f} GB")
+                    label("fv_ram", f"{used:.1f}/{total:.1f} GB")
 
             ctl.stdin.flush()
             time.sleep(1 / GRAPH_HZ)

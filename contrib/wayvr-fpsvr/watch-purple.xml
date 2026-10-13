@@ -158,16 +158,18 @@
 
     <!-- fpsVR-style column: header with frame time, graph, temp/load, memory -->
     <template name="StatColumn">
-      <div id="fv_${key}_col" flex_direction="column" gap="2">
+      <div id="fv_${key}_col" flex_direction="column" gap="3" flex_grow="1">
         <div justify_content="space_between" width="100%">
-          <label text="${name}" size="14" color="~color_faded" weight="bold" />
-          <label id="fv_${key}_ms" text="-- ms" size="14" color="~color_text" weight="bold" />
+          <label text="${name}" size="12" color="~color_faded" weight="bold" />
+          <label id="fv_${key}_ms" text="-- ms" size="13" color="~color_text" weight="bold" />
         </div>
-        <rectangle id="fv_${key}_graphbox" border="1" border_color="~color_accent_40" round="4">
-          <image id="fv_${key}_graph" width="150" height="36" src="fpsvr/graph-empty.svg" />
+        <rectangle id="fv_${key}_graphbox" color="~color_accent_10" round="4">
+          <image id="fv_${key}_graph" width="100%" height="32" src="fpsvr/graph-empty.svg" />
         </rectangle>
-        <label id="fv_${key}" text="--" size="13" color="~color_text" />
-        <label id="${extra}" text="--" size="13" color="~color_faded" />
+        <div justify_content="space_between" width="100%">
+          <label id="fv_${key}" text="--" size="12" color="~color_text" />
+          <label id="${extra}" text="--" size="12" color="~color_faded" />
+        </div>
       </div>
     </template>
 
@@ -298,14 +300,16 @@
 
                   <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file).
                        Hidden with the stats button in the clock box (next to the edit button). -->
-                  <rectangle id="fv_panel" macro="decorative_rect" flex_direction="column" gap="4">
-                    <label id="fv_title" text="No VR app" size="14" color="~color_accent" weight="bold" />
-                    <!-- FPS left, Avg FPS right; Minimal mode shows only this row -->
-                    <div id="fv_fpsrow" justify_content="space_between" width="100%">
-                      <label id="fv_fps" text="FPS --" size="14" color="~color_text" weight="bold" />
-                      <label id="fv_avg_fps" text="Avg --" size="14" color="~color_text" weight="bold" />
+                  <rectangle id="fv_panel" macro="decorative_rect" flex_direction="column" gap="6">
+                    <!-- game left, FPS and Avg FPS right; Minimal mode shows only fv_fpsrow -->
+                    <div justify_content="space_between" align_items="center" width="100%">
+                      <label id="fv_title" text="No VR app" size="14" color="~color_accent" weight="bold" />
+                      <div id="fv_fpsrow" gap="10">
+                        <label id="fv_fps" text="FPS --" size="14" color="~color_text" weight="bold" />
+                        <label id="fv_avg_fps" text="Avg --" size="14" color="~color_text" />
+                      </div>
                     </div>
-                    <div id="fv_cols" justify_content="space_between" width="100%">
+                    <div id="fv_cols" gap="12" width="100%">
                       <StatColumn name="GPU" key="gpu" extra="fv_vram" />
                       <StatColumn name="CPU" key="cpu" extra="fv_ram" />
                     </div>
