@@ -5,6 +5,9 @@ A frame timing panel for [WayVR](https://github.com/wlx-team/wayvr)'s wrist watc
 > [!IMPORTANT]
 > **This only works with this fork.** The game name, FPS, frame times and graphs come from `wivrn-server` from WiVRn-QPro-OSC, **v26.9-qpro.3 or later** ([Part 1](../../README.md#part-1-wivrn-qpro-osc-face-tracking-to-vrchat-and-resonite)). Stock WiVRn (and other forks) don't share frame times, so with them the panel only shows the hardware stats (temperatures, load, memory), FPS and frame times stay `--`, and the clock says `No VR game`.
 
+> [!NOTE]
+> **Tested on real hardware.** I (SeventhVoid) have tested the stats panel myself on my own hardware: a Quest Pro, running VRChat, with an AMD RX 9070 XT.
+
 <p align="center">
   <img src="watch.png" alt="WayVR watch with the stats panel" width="380">
   <img src="watch-hidden.png" alt="The same watch with the stats hidden" width="380">
