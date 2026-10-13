@@ -118,7 +118,7 @@ From the [latest release](https://github.com/Seventh-Void/WiVRn-QPro-OSC/release
 
 | You use | Part 1 | Part 2 (optional) |
 |---|---|---|
-| Arch Linux, CachyOS, EndeavourOS, Manjaro | `wivrn-server-26.9-5-x86_64.pkg.tar.zst` and `wivrn-dashboard-26.9-5-x86_64.pkg.tar.zst` | `wayvr-26.8.0-1.4-x86_64.pkg.tar.zst` and `wayvr-watch-stats.tar.gz` |
+| Arch Linux, CachyOS, EndeavourOS, Manjaro | `wivrn-server-26.9-6-x86_64.pkg.tar.zst` and `wivrn-dashboard-26.9-6-x86_64.pkg.tar.zst` | `wayvr-26.8.0-1.4-x86_64.pkg.tar.zst` and `wayvr-watch-stats.tar.gz` |
 | Fedora, Debian, Ubuntu, Mint | nothing: you build it with the commands below | `wayvr-watch-stats.tar.gz` (WayVR itself you build with the commands below) |
 
 `SHA256SUMS` is optional: it lets you check the downloads with `sha256sum -c --ignore-missing SHA256SUMS`.
@@ -138,14 +138,14 @@ Pick your distribution.
 With the two downloaded packages, in the folder you downloaded them to:
 
 ```sh
-sudo pacman -U wivrn-server-26.9-5-x86_64.pkg.tar.zst wivrn-dashboard-26.9-5-x86_64.pkg.tar.zst
+sudo pacman -U wivrn-server-26.9-6-x86_64.pkg.tar.zst wivrn-dashboard-26.9-6-x86_64.pkg.tar.zst
 ```
 
 Or build the packages yourself instead:
 
 ```sh
 sudo pacman -S --needed base-devel git
-git clone -b v26.9-qpro.5 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
+git clone -b v26.9-qpro.6 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
 cd ~/WiVRn-QPro-OSC/archlinux
 makepkg -si
 cd ~
@@ -196,7 +196,7 @@ These packages replace the AUR packages of the same name (same version, newer pa
 #### Build and install (Fedora, Debian, Ubuntu 26.04)
 
 ```sh
-git clone -b v26.9-qpro.5 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
+git clone -b v26.9-qpro.6 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
 cd ~/WiVRn-QPro-OSC
 cmake -B build -G Ninja -DGIT_TAG=v26.9 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
       -DWIVRN_BUILD_SERVER=ON -DWIVRN_BUILD_DASHBOARD=ON -DWIVRN_BUILD_CLIENT=OFF -DWIVRN_BUILD_WIVRNCTL=ON \
@@ -222,7 +222,7 @@ sudo apt install -y build-essential cmake ninja-build git pkg-config glslang-too
   libx264-dev libxcb-randr0-dev libxrandr-dev nlohmann-json3-dev libarchive-dev librsvg2-dev libpng-dev \
   libssl-dev libcurl4-openssl-dev libfontconfig-dev libdrm-dev libglib2.0-dev libopencv-dev adb \
   android-sdk-platform-tools-common
-git clone -b v26.9-qpro.5 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
+git clone -b v26.9-qpro.6 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
 cd ~/WiVRn-QPro-OSC
 cmake -B build -G Ninja -DGIT_TAG=v26.9 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/usr \
       -DWIVRN_BUILD_SERVER=ON -DWIVRN_BUILD_DASHBOARD=OFF -DWIVRN_BUILD_CLIENT=OFF -DWIVRN_BUILD_WIVRNCTL=ON \
@@ -319,7 +319,7 @@ sudo pacman -U wayvr-26.8.0-1.4-x86_64.pkg.tar.zst
 Or build it yourself (needs the `~/WiVRn-QPro-OSC` clone from Part 1, or clone it now):
 
 ```sh
-[ -d ~/WiVRn-QPro-OSC ] || git clone -b v26.9-qpro.5 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
+[ -d ~/WiVRn-QPro-OSC ] || git clone -b v26.9-qpro.6 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
 cd ~/WiVRn-QPro-OSC/contrib/wayvr-fpsvr/wayvr-pkg
 makepkg -si
 cd ~
@@ -351,7 +351,7 @@ cd ~
 2. Build and install. This uses [rustup](https://rustup.rs) (installs Rust for your user only, in `~/.cargo`), because the distributions' Rust is older than WayVR needs. OpenVR support is left out (not packaged everywhere; WiVRn uses OpenXR).
 
    ```sh
-   [ -d ~/WiVRn-QPro-OSC ] || git clone -b v26.9-qpro.5 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
+   [ -d ~/WiVRn-QPro-OSC ] || git clone -b v26.9-qpro.6 https://github.com/Seventh-Void/WiVRn-QPro-OSC.git ~/WiVRn-QPro-OSC
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
    . "$HOME/.cargo/env"
    cd ~
