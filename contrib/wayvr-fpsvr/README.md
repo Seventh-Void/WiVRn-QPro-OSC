@@ -142,6 +142,8 @@ From a clone of the repository, run `./install.sh` in this folder instead.
 
 It copies `wayvr-stats` to `~/.local/bin`, the systemd user units and the icons into `~/.config`, and turns on `wayvr-stats.path`. The stats then start by themselves whenever WayVR starts, however it is launched, and follow WayVR across restarts and crashes (the service also restarts the script if it fails).
 
+If WayVR is running, the installer restarts it (with the same options it was started with), so the new watch and the stats show straight away. If it isn't running, they show the next time you start WayVR. With `keep` it leaves WayVR alone, since the add-ons still have to go into your watch first.
+
 ### 2. The watch
 
 **A. Replace your watch** (`install.sh` or `install.sh purple`): the installer puts in the complete white or purple watch. Your old `watch.xml` is kept next to it as `watch.xml.<date>.bak`.

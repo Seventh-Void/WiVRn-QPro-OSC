@@ -384,7 +384,7 @@ This replaces your WayVR watch with one that has the stats (your old watch is ba
 
 ### Step 3: start it
 
-Restart WayVR (`wayvr --replace`, or close and start it). The stats start by themselves with WayVR from now on. Change what they show in WayVR's **Settings → FPS stats**; turn them off in the WiVRn dashboard → **Settings** → **fpsVR-style stats on the WayVR watch** (or `"wayvr-stats": false` in `~/.config/wivrn/config.json`).
+Nothing to do: if WayVR was running, the installer restarted it so the watch shows straight away; if not, it shows the next time you start WayVR. (With `keep`, restart WayVR yourself once the stats are in your watch: `wayvr --replace`, or close and start it.) The stats start by themselves with WayVR from now on. Change what they show in WayVR's **Settings → FPS stats**; turn them off in the WiVRn dashboard → **Settings** → **fpsVR-style stats on the WayVR watch** (or `"wayvr-stats": false` in `~/.config/wivrn/config.json`).
 
 ## Credits and licenses
 
