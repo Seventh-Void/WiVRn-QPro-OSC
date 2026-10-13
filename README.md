@@ -304,6 +304,9 @@ The Flatpak is not supported.
 
 FPS, frame time graphs, temperatures, load and memory on the [WayVR](https://github.com/wlx-team/wayvr) wrist watch, like fpsVR on SteamVR. Separate from Part 1: it only reads the frame times Part 1 publishes, and you can skip it entirely. Full details (what each number means, settings, NVIDIA support, troubleshooting): [contrib/wayvr-fpsvr](contrib/wayvr-fpsvr).
 
+> [!IMPORTANT]
+> **This only works with this fork.** The game name, FPS, frame times and graphs come from `wivrn-server` from WiVRn-QPro-OSC, **v26.9-qpro.3 or later** ([Part 1](#part-1-wivrn-qpro-osc-face-tracking-to-vrchat-and-resonite)). Stock WiVRn (and other forks) don't share frame times, so with them the panel only shows the hardware stats (temperatures, load, memory), FPS and frame times stay `--`, and the clock says `No VR game`.
+
 ### Step 1: the patched WayVR
 
 Optional: the stats and graphs also work with your distribution's WayVR. The patched WayVR 26.8.0 adds **Settings → FPS stats** and fixes a WayVR crash when a screen share connects. To use it, install it instead of your distribution's WayVR.
