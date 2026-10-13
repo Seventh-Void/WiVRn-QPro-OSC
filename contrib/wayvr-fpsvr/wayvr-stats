@@ -208,16 +208,16 @@ def turned_on():
 
 
 def load_settings():
-    """settings.json -> {"show": {element: bool}, "graphs": bool}, with Minimal mode already applied."""
+    """settings.json -> {"show": {element: bool}, "graphs": bool, "minimal": bool}, with Minimal mode already applied."""
     data = read_json(SETTINGS)
     show = data.get("show") if isinstance(data.get("show"), dict) else {}
     show = {k: show.get(k, True) is not False for k in ELEMENTS}
     if data.get("mode") == "minimal":
         show.update({k: False for k in MINIMAL_OFF}, fps=True, avg=True)
-    return {"show": show, "graphs": data.get("graphs") is not False}
+    return {"show": show, "graphs": data.get("graphs") is not False, "minimal": data.get("mode") == "minimal"}
 
 
-def visibility(on, hidden, show):
+def visibility(on, hidden, show, minimal):
     """Watch element id -> visible, for the master switch, the Hide/Show button state and the settings."""
     gpu_col = show["gpu_ms"] or show["gpu"] or show["vram"]
     cpu_col = show["cpu_ms"] or show["cpu"] or show["ram"]
@@ -225,6 +225,7 @@ def visibility(on, hidden, show):
     hidden = hidden and show["button"]  # without the button the panel can't stay hidden
     return {
         "fv_panel": on and not hidden and (show["title"] or fps_row or gpu_col or cpu_col),
+        "fv_header": (show["title"] or fps_row) and not minimal, "fv_minrow": minimal,
         "fv_title": show["title"], "fv_fpsrow": fps_row, "fv_fps": show["fps"], "fv_avg_fps": show["avg"],
         "fv_cols": gpu_col or cpu_col, "fv_gpu_col": gpu_col, "fv_cpu_col": cpu_col,
         "fv_gpu_ms": show["gpu_ms"], "fv_gpu_graphbox": show["gpu_ms"], "fv_gpu": show["gpu"], "fv_vram": show["vram"],
@@ -361,7 +362,7 @@ def run(pid):
                 on, settings = turned_on(), load_settings()
                 if not settings["show"]["button"] and os.path.exists(HIDDEN):
                     os.remove(HIDDEN)  # no button left to show the stats again
-                for wid, vis in visibility(on, os.path.exists(HIDDEN), settings["show"]).items():
+                for wid, vis in visibility(on, os.path.exists(HIDDEN), settings["show"], settings["minimal"]).items():
                     if visible.get(wid) != vis:  # everything on the first pass, then only changes
                         visible[wid] = vis
                         ctl.stdin.write(f"panel-modify watch {wid} set-visible {1 if vis else 0}\n")
@@ -436,6 +437,9 @@ def run(pid):
                     label("fv_cpu_ms", "-- ms")
                     for wid in ("fv_fps", "fv_avg_fps", "fv_gpu_ms", "fv_cpu_ms"):
                         color(wid, TEXT)
+                # Minimal mode's big numbers: FPS and Avg without their prefix, same colors
+                for big, wid in (("fv_min_fps", "fv_fps"), ("fv_min_avg", "fv_avg_fps")):
+                    label(big, shown.get(wid, "--").split()[-1]), color(big, colors.get(wid, TEXT))
 
                 # hardware lines: only read what shows
                 if show["cpu"]:

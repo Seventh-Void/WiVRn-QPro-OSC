@@ -301,8 +301,20 @@
                   <!-- fpsVR-style stats, filled in by wayvr-stats (see README.md next to this file).
                        Hidden with the stats button in the clock box (next to the edit button). -->
                   <rectangle id="fv_panel" macro="decorative_rect" flex_direction="column" gap="6">
-                    <!-- game left, FPS and Avg FPS right; Minimal mode shows only fv_fpsrow -->
-                    <div justify_content="space_between" align_items="center" width="100%">
+                    <!-- Minimal mode: FPS and Avg FPS as two big numbers, instead of everything below -->
+                    <div id="fv_minrow" display="none" gap="8">
+                      <div flex_grow="1" flex_direction="column" align_items="center" gap="1">
+                        <label id="fv_min_fps" text="--" size="28" color="~color_text" weight="bold" />
+                        <label text="FPS" size="11" color="~color_faded" weight="bold" />
+                      </div>
+                      <rectangle width="1" color="~color_accent_40" />
+                      <div flex_grow="1" flex_direction="column" align_items="center" gap="1">
+                        <label id="fv_min_avg" text="--" size="28" color="~color_text" weight="bold" />
+                        <label text="AVG" size="11" color="~color_faded" weight="bold" />
+                      </div>
+                    </div>
+                    <!-- game left, FPS and Avg FPS right -->
+                    <div id="fv_header" justify_content="space_between" align_items="center" width="100%">
                       <label id="fv_title" text="No VR app" size="14" color="~color_accent" weight="bold" />
                       <div id="fv_fpsrow" gap="10">
                         <label id="fv_fps" text="FPS --" size="14" color="~color_text" weight="bold" />
